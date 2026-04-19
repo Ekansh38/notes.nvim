@@ -1,77 +1,144 @@
--- Extmark-based wikilink concealment. Works alongside treesitter (unlike syn rules).
+-- Extmark-based concealment for vault markdown. Works alongside treesitter.
 --
--- [[Title]]        → shows "Title"  (underlined, [[ and ]] hidden)
--- [[Title|Alias]]  → shows "Alias"  (underlined, [[Title| and ]] hidden)
+-- Handles:
+--   [[Title]]        → "Title"       (wikilink, underlined)
+--   [[Title|Alias]]  → "Alias"       (aliased wikilink, underlined)
+--   `code`           → code          (inline code, slight bg highlight)
+--   ==text==         → text          (highlight mark, yellow)
 --
--- conceallevel must be >= 1 for this to take effect (set in options.lua).
+-- conceallevel >= 1 required (set globally in options.lua).
 
 local M = {}
 local ns = vim.api.nvim_create_namespace("notes_conceal")
 
-local function apply(bufnr)
-    vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+-- ── highlight groups ──────────────────────────────────────────────────────────
 
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+local function setup_highlights()
+    -- Wikilinks: inherit from treesitter's link label group
+    vim.api.nvim_set_hl(0, "NotesWikiLink", { link = "@markup.link" })
+    -- Inline code: subtle background, like a dim code block
+    vim.api.nvim_set_hl(0, "NotesInlineCode", { link = "@markup.raw.markdown_inline" })
+    -- ==highlight==: Obsidian-style yellow mark
+    vim.api.nvim_set_hl(0, "NotesHighlight", { bg = "#3d3000", fg = "#ffd700", bold = true })
+end
 
-    for lnum, line in ipairs(lines) do
-        local row = lnum - 1 -- nvim extmarks are 0-indexed rows
-        local pos  = 1
+-- ── per-pattern helpers (all positions: Lua 1-indexed in, 0-indexed extmarks) ─
 
-        while pos <= #line do
-            local open_s, open_e = line:find("%[%[", pos)
-            if not open_s then break end
+local function conceal(bufnr, row, col_1, end_col_1)
+    -- col_1, end_col_1: 1-indexed inclusive → 0-indexed exclusive
+    vim.api.nvim_buf_set_extmark(bufnr, ns, row, col_1 - 1, {
+        end_col = end_col_1,
+        conceal = "",
+    })
+end
 
-            local close_s, close_e = line:find("%]%]", open_e + 1)
-            if not close_s then break end
+local function highlight(bufnr, row, col_1, end_col_1, hl)
+    vim.api.nvim_buf_set_extmark(bufnr, ns, row, col_1 - 1, {
+        end_col  = end_col_1,
+        hl_group = hl,
+    })
+end
 
-            local inner = line:sub(open_e + 1, close_s - 1)
-            local pipe  = inner:find("|", 1, true) -- position within inner (1-indexed)
+-- ── wikilinks ─────────────────────────────────────────────────────────────────
 
-            -- All cols below are 0-indexed; end_col is exclusive (nvim convention).
+local function apply_wikilinks(bufnr, row, line)
+    local pos = 1
+    while pos <= #line do
+        local open_s, open_e = line:find("%[%[", pos)
+        if not open_s then break end
 
-            -- conceal  [[
-            vim.api.nvim_buf_set_extmark(bufnr, ns, row, open_s - 1, {
-                end_col = open_e,
-                conceal = "",
-            })
+        local close_s, close_e = line:find("%]%]", open_e + 1)
+        if not close_s then break end
 
-            if pipe then
-                -- conceal "Title|"  (everything from after [[ up to and including |)
-                vim.api.nvim_buf_set_extmark(bufnr, ns, row, open_e, {
-                    end_col = open_e + pipe, -- pipe is 1-indexed in inner, so open_e+pipe is exclusive end in line
-                    conceal = "",
-                })
-                -- highlight the alias text
-                vim.api.nvim_buf_set_extmark(bufnr, ns, row, open_e + pipe, {
-                    end_col  = close_s - 1,
-                    hl_group = "NotesWikiLink",
-                })
+        local inner = line:sub(open_e + 1, close_s - 1)
+        local pipe  = inner:find("|", 1, true) -- 1-indexed pos within inner
+
+        conceal(bufnr, row, open_s, open_e)   -- hide [[
+
+        if pipe then
+            -- hide "Title|", highlight alias
+            conceal(bufnr, row, open_e + 1, open_e + pipe)
+            highlight(bufnr, row, open_e + pipe + 1, close_s - 1, "NotesWikiLink")
+        else
+            highlight(bufnr, row, open_e + 1, close_s - 1, "NotesWikiLink")
+        end
+
+        conceal(bufnr, row, close_s, close_e)  -- hide ]]
+
+        pos = close_e + 1
+    end
+end
+
+-- ── inline code ───────────────────────────────────────────────────────────────
+
+local function apply_inline_code(bufnr, row, line)
+    local pos = 1
+    while pos <= #line do
+        local s = line:find("`", pos)
+        if not s then break end
+
+        -- Skip if part of ``` (adjacent backtick on either side)
+        local prev = line:sub(s - 1, s - 1)
+        local next = line:sub(s + 1, s + 1)
+        if prev == "`" or next == "`" then
+            pos = s + 1
+        else
+            -- Find matching closing single backtick
+            local e = line:find("`", s + 1)
+            if not e then break end
+            -- Ensure closing backtick is also single
+            local e_prev = line:sub(e - 1, e - 1)
+            local e_next = line:sub(e + 1, e + 1)
+            if e_prev ~= "`" and e_next ~= "`" then
+                conceal(bufnr, row, s, s)         -- hide opening `
+                highlight(bufnr, row, s + 1, e - 1, "NotesInlineCode")
+                conceal(bufnr, row, e, e)         -- hide closing `
+                pos = e + 1
             else
-                -- highlight the title text
-                vim.api.nvim_buf_set_extmark(bufnr, ns, row, open_e, {
-                    end_col  = close_s - 1,
-                    hl_group = "NotesWikiLink",
-                })
+                pos = s + 1
             end
-
-            -- conceal  ]]
-            vim.api.nvim_buf_set_extmark(bufnr, ns, row, close_s - 1, {
-                end_col = close_e,
-                conceal = "",
-            })
-
-            pos = close_e + 1
         end
     end
 end
 
+-- ── ==highlight== ─────────────────────────────────────────────────────────────
+
+local function apply_mark_highlight(bufnr, row, line)
+    local pos = 1
+    while pos <= #line do
+        local s, e = line:find("==([^=\n]+)==", pos)
+        if not s then break end
+
+        -- s,e span the entire ==content== match (1-indexed inclusive)
+        -- ==   : positions s, s+1
+        -- text : positions s+2 .. e-2
+        -- ==   : positions e-1, e
+        conceal(bufnr, row, s, s + 1)
+        highlight(bufnr, row, s + 2, e - 2, "NotesHighlight")
+        conceal(bufnr, row, e - 1, e)
+
+        pos = e + 1
+    end
+end
+
+-- ── main apply ────────────────────────────────────────────────────────────────
+
+local function apply(bufnr)
+    vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    for lnum, line in ipairs(lines) do
+        local row = lnum - 1
+        apply_wikilinks(bufnr, row, line)
+        apply_inline_code(bufnr, row, line)
+        apply_mark_highlight(bufnr, row, line)
+    end
+end
+
+-- ── public ────────────────────────────────────────────────────────────────────
+
 function M.attach(bufnr)
-    -- Link to markdown's treesitter link highlight; falls back gracefully.
-    vim.api.nvim_set_hl(0, "NotesWikiLink", { link = "@markup.link" })
-
+    setup_highlights()
     apply(bufnr)
-
-    -- Keep extmarks current as the user types
     vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         buffer   = bufnr,
         callback = function() apply(bufnr) end,

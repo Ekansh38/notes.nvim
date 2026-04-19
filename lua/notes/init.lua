@@ -16,19 +16,29 @@ function M.setup(opts)
         callback = function() require("notes.util").invalidate() end,
     })
 
-    -- Buffer-local keymaps: only for markdown files inside the vault
+    -- Buffer-local setup: only for markdown files inside the vault
     vim.api.nvim_create_autocmd("FileType", {
         pattern  = "markdown",
         callback = function()
             local bufname = vim.api.nvim_buf_get_name(0)
             if not bufname:find(M.config.vault_path, 1, true) then return end
 
-            require("notes.conceal").attach(vim.api.nvim_get_current_buf())
+            local bufnr = vim.api.nvim_get_current_buf()
+
+            -- concealcursor = "n": keep conceal active in normal mode so line
+            -- width stays consistent (fixes the visual wrap gap when moving off a line)
+            vim.opt_local.concealcursor = "n"
+
+            -- Extmark-based concealment (wikilinks, inline code, ==highlight==)
+            require("notes.conceal").attach(bufnr)
+
+            -- ``` → code block with cursor on the blank middle line
+            vim.keymap.set("i", "```", "```<CR><CR>```<Esc>kA",
+                { buffer = true, desc = "Code block" })
 
             local o = { buffer = true, silent = true }
             vim.keymap.set("n", "gf",         require("notes.link").follow,    vim.tbl_extend("force", o, { desc = "Follow wikilink" }))
             vim.keymap.set("n", "<leader>on", require("notes.note").new,       vim.tbl_extend("force", o, { desc = "Notes: new note" }))
-            vim.keymap.set("n", "<leader>od", require("notes.daily").open,     vim.tbl_extend("force", o, { desc = "Notes: daily note" }))
             vim.keymap.set("n", "<leader>ob", require("notes.backlink").show,  vim.tbl_extend("force", o, { desc = "Notes: backlinks" }))
             vim.keymap.set("n", "<leader>or", require("notes.rename").rename,  vim.tbl_extend("force", o, { desc = "Notes: rename + relink" }))
         end,
