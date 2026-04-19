@@ -14,25 +14,26 @@ local ns = vim.api.nvim_create_namespace("notes_conceal")
 -- ── highlight groups ──────────────────────────────────────────────────────────
 
 local function setup_highlights()
-    -- Wikilinks
-    vim.api.nvim_set_hl(0, "NotesWikiLink", { link = "@markup.link" })
+    -- default = true means the colorscheme wins if it defines the group;
+    -- these only kick in when the theme leaves them undefined.
 
-    -- ==highlight== : Obsidian-style yellow
-    vim.api.nvim_set_hl(0, "NotesHighlight", { bg = "#3d3000", fg = "#ffd700", bold = true })
+    -- Wikilinks → whatever the theme uses for links, fall back to Underlined
+    vim.api.nvim_set_hl(0, "@markup.link",    { link = "Underlined", default = true })
+    vim.api.nvim_set_hl(0, "NotesWikiLink",   { link = "@markup.link", default = true })
 
-    -- Inline code `...` : Nord doesn't define these, so set them explicitly.
-    -- Slightly lighter bg than the #0d0d0d normal bg, Nord Polar Night tone.
-    vim.api.nvim_set_hl(0, "NotesInlineCode",        { bg = "#2E3440", fg = "#D8DEE9" })
-    vim.api.nvim_set_hl(0, "@markup.raw.markdown_inline", { bg = "#2E3440", fg = "#D8DEE9" })
+    -- ==highlight== → fall back to a Search-style highlight (theme-neutral)
+    vim.api.nvim_set_hl(0, "NotesHighlight",  { link = "Search", default = true })
 
-    -- Fenced code blocks: give the whole block a distinct background.
-    -- @markup.raw.block covers the content lines; the delimiter is the ``` line.
-    vim.api.nvim_set_hl(0, "@markup.raw.block",              { bg = "#1e222a" })
-    vim.api.nvim_set_hl(0, "@markup.raw.block.markdown",     { bg = "#1e222a" })
-    -- Fence delimiter lines (the ``` and ```lang lines) — dim them
-    vim.api.nvim_set_hl(0, "@markup.raw.delimiter.markdown", { fg = "#4C566A", bg = "#1e222a" })
-    -- Language tag on opening fence (e.g. "go" in ```go)
-    vim.api.nvim_set_hl(0, "@label.markdown",                { fg = "#4C566A", bg = "#1e222a" })
+    -- Inline code → CursorLine gives a subtle bg that every theme defines
+    vim.api.nvim_set_hl(0, "@markup.raw.markdown_inline", { link = "CursorLine", default = true })
+    vim.api.nvim_set_hl(0, "NotesInlineCode",             { link = "@markup.raw.markdown_inline", default = true })
+
+    -- Fenced code block body → slightly distinct from normal text
+    vim.api.nvim_set_hl(0, "@markup.raw.block",              { link = "CursorLine", default = true })
+    vim.api.nvim_set_hl(0, "@markup.raw.block.markdown",     { link = "CursorLine", default = true })
+    -- Fence ``` lines and language tag → dimmed like comments
+    vim.api.nvim_set_hl(0, "@markup.raw.delimiter.markdown", { link = "Comment", default = true })
+    vim.api.nvim_set_hl(0, "@label.markdown",                { link = "Comment", default = true })
 end
 
 -- ── per-pattern helpers (all positions: Lua 1-indexed in, 0-indexed extmarks) ─
