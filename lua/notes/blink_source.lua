@@ -21,7 +21,7 @@ function Source:get_completions(ctx, callback)
         return
     end
 
-    local titles = require("vault.util").all_titles()
+    local titles = require("notes.util").all_titles()
     local items  = {}
     for _, title in ipairs(titles) do
         items[#items + 1] = {

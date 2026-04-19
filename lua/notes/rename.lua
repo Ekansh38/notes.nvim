@@ -4,7 +4,7 @@ function M.rename()
     local old_path = vim.api.nvim_buf_get_name(0)
 
     if old_path == "" or not old_path:match("%.md$") then
-        vim.notify("vault: not in a markdown note", vim.log.levels.WARN)
+        vim.notify("notes: not in a markdown note", vim.log.levels.WARN)
         return
     end
 
@@ -19,18 +19,18 @@ function M.rename()
         local new_path = vim.fn.fnamemodify(old_path, ":h") .. "/" .. new_title .. ".md"
 
         if vim.fn.filereadable(new_path) == 1 then
-            vim.notify("vault: '" .. new_title .. "' already exists", vim.log.levels.ERROR)
+            vim.notify("notes: '" .. new_title .. "' already exists", vim.log.levels.ERROR)
             return
         end
 
         -- 1. Rename the file
         if vim.fn.rename(old_path, new_path) ~= 0 then
-            vim.notify("vault: rename failed", vim.log.levels.ERROR)
+            vim.notify("notes: rename failed", vim.log.levels.ERROR)
             return
         end
 
         -- 2. Relink all .md files in the vault
-        local cfg         = require("vault").config
+        local cfg         = require("notes").config
         local files       = vim.fn.glob(cfg.vault_path .. "/**/*.md", false, true)
         local escaped_old = vim.pesc(old_title) -- escape Lua pattern special chars
         local updated     = 0
@@ -56,7 +56,7 @@ function M.rename()
         end
 
         -- 3. Invalidate the note index
-        require("vault.util").invalidate()
+        require("notes.util").invalidate()
 
         -- 4. Switch current buffer to the renamed file
         vim.cmd("edit " .. vim.fn.fnameescape(new_path))
@@ -66,7 +66,7 @@ function M.rename()
         end
 
         vim.notify(string.format(
-            "vault: '%s' → '%s' (relinked %d file%s)",
+            "notes: '%s' → '%s' (relinked %d file%s)",
             old_title, new_title, updated, updated == 1 and "" or "s"
         ))
     end)

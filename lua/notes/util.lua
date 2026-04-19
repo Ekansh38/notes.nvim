@@ -3,7 +3,7 @@ local M = {}
 local _index = nil -- { ["Exact Title"] = "/full/path.md" }
 
 local function build_index()
-    local cfg = require("vault").config
+    local cfg = require("notes").config
     _index = {}
     local files = vim.fn.glob(cfg.vault_path .. "/**/*.md", false, true)
     for _, path in ipairs(files) do

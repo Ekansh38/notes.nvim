@@ -3,11 +3,11 @@ local M = {}
 function M.show()
     local bufname = vim.api.nvim_buf_get_name(0)
     if bufname == "" then
-        vim.notify("vault: buffer has no file", vim.log.levels.WARN)
+        vim.notify("notes: buffer has no file", vim.log.levels.WARN)
         return
     end
 
-    local cfg   = require("vault").config
+    local cfg   = require("notes").config
     local title = vim.fn.fnamemodify(bufname, ":t:r")
 
     -- "[[Title" catches both [[Title]] and [[Title|alias]] without regex.

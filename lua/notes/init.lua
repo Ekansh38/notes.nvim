@@ -13,7 +13,7 @@ function M.setup(opts)
     -- Invalidate the note index whenever a vault .md file is written or deleted
     vim.api.nvim_create_autocmd({ "BufWritePost", "BufDelete" }, {
         pattern  = M.config.vault_path .. "/**/*.md",
-        callback = function() require("vault.util").invalidate() end,
+        callback = function() require("notes.util").invalidate() end,
     })
 
     -- Buffer-local keymaps: only for markdown files inside the vault
@@ -24,11 +24,11 @@ function M.setup(opts)
             if not bufname:find(M.config.vault_path, 1, true) then return end
 
             local o = { buffer = true, silent = true }
-            vim.keymap.set("n", "gf",         require("vault.link").follow,     vim.tbl_extend("force", o, { desc = "Follow wikilink" }))
-            vim.keymap.set("n", "<leader>vn", require("vault.note").new,        vim.tbl_extend("force", o, { desc = "Vault: new note" }))
-            vim.keymap.set("n", "<leader>vd", require("vault.daily").open,      vim.tbl_extend("force", o, { desc = "Vault: daily note" }))
-            vim.keymap.set("n", "<leader>vb", require("vault.backlink").show,   vim.tbl_extend("force", o, { desc = "Vault: backlinks" }))
-            vim.keymap.set("n", "<leader>vr", require("vault.rename").rename,   vim.tbl_extend("force", o, { desc = "Vault: rename + relink" }))
+            vim.keymap.set("n", "gf",         require("notes.link").follow,    vim.tbl_extend("force", o, { desc = "Follow wikilink" }))
+            vim.keymap.set("n", "<leader>on", require("notes.note").new,       vim.tbl_extend("force", o, { desc = "Notes: new note" }))
+            vim.keymap.set("n", "<leader>od", require("notes.daily").open,     vim.tbl_extend("force", o, { desc = "Notes: daily note" }))
+            vim.keymap.set("n", "<leader>ob", require("notes.backlink").show,  vim.tbl_extend("force", o, { desc = "Notes: backlinks" }))
+            vim.keymap.set("n", "<leader>or", require("notes.rename").rename,  vim.tbl_extend("force", o, { desc = "Notes: rename + relink" }))
         end,
     })
 end

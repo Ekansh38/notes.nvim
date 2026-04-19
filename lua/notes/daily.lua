@@ -1,7 +1,7 @@
 local M = {}
 
 function M.open()
-    local cfg       = require("vault").config
+    local cfg       = require("notes").config
     local today     = os.date("%Y-%m-%d")
     local daily_dir = cfg.vault_path .. "/" .. cfg.daily_dir
     local path      = daily_dir .. "/" .. today .. ".md"
@@ -18,9 +18,9 @@ function M.open()
     -- Create from the fixed daily template (no picker)
     local tmpl_path = cfg.vault_path .. "/" .. cfg.templates_dir
                       .. "/" .. cfg.daily_template
-    local content, err = require("vault.template").load_and_apply(tmpl_path, today)
+    local content, err = require("notes.template").load_and_apply(tmpl_path, today)
     if err then
-        vim.notify("vault: " .. err .. " — creating empty daily note", vim.log.levels.WARN)
+        vim.notify("notes: " .. err .. " — creating empty daily note", vim.log.levels.WARN)
         content = ""
     end
 

@@ -38,17 +38,17 @@ function M.follow()
         return
     end
 
-    local util = require("vault.util")
+    local util = require("notes.util")
     local path = util.find_note(title)
 
     if path then
         vim.cmd("edit " .. vim.fn.fnameescape(path))
     else
         -- Note doesn't exist: create it in vault root, open template picker
-        local cfg       = require("vault").config
+        local cfg       = require("notes").config
         local safe      = title:gsub("[/\\]", "-") -- no path separators in title
         local new_path  = cfg.vault_path .. "/" .. safe .. ".md"
-        require("vault.note").create({ title = safe, path = new_path })
+        require("notes.note").create({ title = safe, path = new_path })
     end
 end
 

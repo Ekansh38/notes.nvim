@@ -1,7 +1,7 @@
 local M = {}
 
 local function pick_template_and_create(title, path)
-    local cfg          = require("vault").config
+    local cfg          = require("notes").config
     local template_dir = cfg.vault_path .. "/" .. cfg.templates_dir
     local tmpl_files   = vim.fn.glob(template_dir .. "/*.md", false, true)
 
@@ -34,9 +34,9 @@ local function pick_template_and_create(title, path)
                 actions.close(prompt_bufnr)
                 if not sel then return end -- picker cancelled, abort
 
-                local content, err = require("vault.template").load_and_apply(sel.value, title)
+                local content, err = require("notes.template").load_and_apply(sel.value, title)
                 if err then
-                    vim.notify("vault: " .. err, vim.log.levels.ERROR)
+                    vim.notify("notes: " .. err, vim.log.levels.ERROR)
                     vim.fn.writefile({}, path)
                 else
                     vim.fn.writefile(vim.split(content, "\n"), path)
@@ -53,7 +53,7 @@ function M.new()
     vim.ui.input({ prompt = "Note title: " }, function(input)
         if not input or vim.trim(input) == "" then return end
         local title = vim.trim(input):gsub("[/\\]", "-")
-        local cfg   = require("vault").config
+        local cfg   = require("notes").config
         local path  = cfg.vault_path .. "/" .. title .. ".md"
 
         -- Already exists → just open it
