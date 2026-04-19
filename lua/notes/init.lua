@@ -25,10 +25,6 @@ function M.setup(opts)
 
             local bufnr = vim.api.nvim_get_current_buf()
 
-            -- concealcursor = "n": keep conceal active in normal mode so line
-            -- width stays consistent (fixes the visual wrap gap when moving off a line)
-            vim.opt_local.concealcursor = "n"
-
             -- Extmark-based concealment (wikilinks, inline code, ==highlight==)
             require("notes.conceal").attach(bufnr)
 
