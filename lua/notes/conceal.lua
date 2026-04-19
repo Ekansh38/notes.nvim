@@ -28,10 +28,11 @@ local function setup_highlights()
     vim.api.nvim_set_hl(0, "@markup.raw.markdown_inline", { link = "CursorLine", default = true })
     vim.api.nvim_set_hl(0, "NotesInlineCode",             { link = "@markup.raw.markdown_inline", default = true })
 
-    -- Fenced code blocks: NO background — terminal can't extend it to full line
-    -- width so it looks worse than nothing. Syntax highlighting alone is enough.
-    vim.api.nvim_set_hl(0, "@markup.raw.block",          { default = true })
-    vim.api.nvim_set_hl(0, "@markup.raw.block.markdown", { default = true })
+    -- Fenced code block background. Terminal can't extend it to full line width
+    -- so it only covers the text, not the whole line (unlike Obsidian).
+    -- Comment these two lines out if you prefer no background.
+    vim.api.nvim_set_hl(0, "@markup.raw.block",          { link = "CursorLine", default = true })
+    vim.api.nvim_set_hl(0, "@markup.raw.block.markdown", { link = "CursorLine", default = true })
     -- Fence ``` lines and language tag → dimmed like comments
     vim.api.nvim_set_hl(0, "@markup.raw.delimiter.markdown", { link = "Comment", default = true })
     vim.api.nvim_set_hl(0, "@label.markdown",                { link = "Comment", default = true })
