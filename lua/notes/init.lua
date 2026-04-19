@@ -25,6 +25,13 @@ function M.setup(opts)
 
             local bufnr = vim.api.nvim_get_current_buf()
 
+            -- nvim-treesitter lazy-loads on BufReadPost, so the buffer that
+            -- triggered it already missed that event. Start treesitter manually
+            -- so code block injections and syntax highlighting actually work.
+            if not vim.treesitter.highlighter.active[bufnr] then
+                pcall(vim.treesitter.start, bufnr, "markdown")
+            end
+
             -- Extmark-based concealment (wikilinks, inline code, ==highlight==)
             require("notes.conceal").attach(bufnr)
 
