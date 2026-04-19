@@ -28,10 +28,6 @@ function M.setup(opts)
             -- Extmark-based concealment (wikilinks, inline code, ==highlight==)
             require("notes.conceal").attach(bufnr)
 
-            -- ``` → code block with cursor on the blank middle line
-            vim.keymap.set("i", "```", "```<CR><CR>```<Esc>kA",
-                { buffer = true, desc = "Code block" })
-
             local o = { buffer = true, silent = true }
             vim.keymap.set("n", "gf",         require("notes.link").follow,    vim.tbl_extend("force", o, { desc = "Follow wikilink" }))
             vim.keymap.set("n", "<leader>on", require("notes.note").new,       vim.tbl_extend("force", o, { desc = "Notes: new note" }))
