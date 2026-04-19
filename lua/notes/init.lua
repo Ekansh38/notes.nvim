@@ -23,6 +23,18 @@ function M.setup(opts)
             local bufname = vim.api.nvim_buf_get_name(0)
             if not bufname:find(M.config.vault_path, 1, true) then return end
 
+            -- Conceal [[brackets]] and show link text only.
+            -- [[Title]]        → "Title" (underlined)
+            -- [[Title|Alias]]  → "Alias" (underlined, Title| concealed)
+            vim.cmd([[
+                syn region NotesWikiLink matchgroup=NotesWikiLinkBracket
+                    \ start=/\[\[/ end=/\]\]/
+                    \ concealends contains=NotesWikiLinkAlias keepend oneline
+                syn match NotesWikiLinkAlias /[^|\]]\+|/ contained conceal
+            ]])
+            vim.api.nvim_set_hl(0, "NotesWikiLinkBracket", { link = "Conceal" })
+            vim.api.nvim_set_hl(0, "NotesWikiLink", { link = "@markup.link" })
+
             local o = { buffer = true, silent = true }
             vim.keymap.set("n", "gf",         require("notes.link").follow,    vim.tbl_extend("force", o, { desc = "Follow wikilink" }))
             vim.keymap.set("n", "<leader>on", require("notes.note").new,       vim.tbl_extend("force", o, { desc = "Notes: new note" }))

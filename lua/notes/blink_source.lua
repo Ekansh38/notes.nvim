@@ -29,7 +29,7 @@ function Source:get_completions(ctx, callback)
             kind             = vim.lsp.protocol.CompletionItemKind.File,
             -- blink replaces the keyword prefix (what was typed after [[)
             -- insertText completes the rest of the title and closes the brackets
-            insertText       = title .. "]]",
+            insertText       = title,  -- mini.pairs already closed the ]]
             insertTextFormat = 1, -- PlainText
             labelDetails     = { description = "note" },
         }
