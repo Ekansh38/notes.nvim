@@ -26,12 +26,12 @@ function M.setup(opts)
             -- Conceal [[brackets]] and show link text only.
             -- [[Title]]        → "Title" (underlined)
             -- [[Title|Alias]]  → "Alias" (underlined, Title| concealed)
-            vim.cmd([[
+            vim.cmd([==[
                 syn region NotesWikiLink matchgroup=NotesWikiLinkBracket
                     \ start=/\[\[/ end=/\]\]/
                     \ concealends contains=NotesWikiLinkAlias keepend oneline
                 syn match NotesWikiLinkAlias /[^|\]]\+|/ contained conceal
-            ]])
+            ]==])
             vim.api.nvim_set_hl(0, "NotesWikiLinkBracket", { link = "Conceal" })
             vim.api.nvim_set_hl(0, "NotesWikiLink", { link = "@markup.link" })
 
