@@ -24,13 +24,14 @@ local function setup_highlights()
     -- ==highlight== → fall back to a Search-style highlight (theme-neutral)
     vim.api.nvim_set_hl(0, "NotesHighlight",  { link = "Search", default = true })
 
-    -- Inline code → CursorLine gives a subtle bg that every theme defines
+    -- Inline `code` → subtle bg, fine because it's inline (only covers the word)
     vim.api.nvim_set_hl(0, "@markup.raw.markdown_inline", { link = "CursorLine", default = true })
     vim.api.nvim_set_hl(0, "NotesInlineCode",             { link = "@markup.raw.markdown_inline", default = true })
 
-    -- Fenced code block body → slightly distinct from normal text
-    vim.api.nvim_set_hl(0, "@markup.raw.block",              { link = "CursorLine", default = true })
-    vim.api.nvim_set_hl(0, "@markup.raw.block.markdown",     { link = "CursorLine", default = true })
+    -- Fenced code blocks: NO background — terminal can't extend it to full line
+    -- width so it looks worse than nothing. Syntax highlighting alone is enough.
+    vim.api.nvim_set_hl(0, "@markup.raw.block",          { default = true })
+    vim.api.nvim_set_hl(0, "@markup.raw.block.markdown", { default = true })
     -- Fence ``` lines and language tag → dimmed like comments
     vim.api.nvim_set_hl(0, "@markup.raw.delimiter.markdown", { link = "Comment", default = true })
     vim.api.nvim_set_hl(0, "@label.markdown",                { link = "Comment", default = true })
