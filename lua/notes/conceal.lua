@@ -15,6 +15,33 @@ local ns = vim.api.nvim_create_namespace("notes_conceal")
 -- All Notes* groups use default = true so the user can override in their config.
 -- The ColorScheme autocmd re-registers them after a theme change clears them.
 
+-- ── callout type definitions ──────────────────────────────────────────────────
+-- icon: nerd font glyph   hl: which group controls the accent color
+
+local CALLOUT_DEFS = {
+    note      = { icon = "󰋽", hl = "DiagnosticInfo"  },
+    info      = { icon = "",  hl = "DiagnosticInfo"  },
+    abstract  = { icon = "󰈙", hl = "DiagnosticInfo"  },
+    summary   = { icon = "󰈙", hl = "DiagnosticInfo"  },
+    tip       = { icon = "",  hl = "DiagnosticHint"  },
+    hint      = { icon = "",  hl = "DiagnosticHint"  },
+    important = { icon = "",  hl = "DiagnosticHint"  },
+    success   = { icon = "",  hl = "DiagnosticOk"   },
+    done      = { icon = "",  hl = "DiagnosticOk"   },
+    check     = { icon = "",  hl = "DiagnosticOk"   },
+    question  = { icon = "",  hl = "DiagnosticWarn"  },
+    warning   = { icon = "",  hl = "DiagnosticWarn"  },
+    caution   = { icon = "",  hl = "DiagnosticWarn"  },
+    attention = { icon = "",  hl = "DiagnosticWarn"  },
+    failure   = { icon = "",  hl = "DiagnosticError" },
+    danger    = { icon = "",  hl = "DiagnosticError" },
+    error     = { icon = "",  hl = "DiagnosticError" },
+    bug       = { icon = "",  hl = "DiagnosticError" },
+    quote     = { icon = "󱆀", hl = "NotesCallout"   },
+    cite      = { icon = "󱆀", hl = "NotesCallout"   },
+    example   = { icon = "",  hl = "Special"         },
+}
+
 local function setup_highlights()
     -- Wikilinks
     vim.api.nvim_set_hl(0, "@markup.link",  { link = "Underlined", default = true })
@@ -32,9 +59,12 @@ local function setup_highlights()
     vim.api.nvim_set_hl(0, "@markup.raw.delimiter.markdown", { link = "Comment", default = true })
     vim.api.nvim_set_hl(0, "@label.markdown",                { link = "Comment", default = true })
 
-    -- YAML frontmatter delimiters — only dim the --- lines, let the theme's
-    -- YAML treesitter injection control key/value colors natively.
+    -- YAML frontmatter delimiters
     vim.api.nvim_set_hl(0, "NotesYAMLDelim", { link = "Comment", default = true })
+
+    -- Callout blocks
+    vim.api.nvim_set_hl(0, "NotesCallout",   { link = "Comment",    default = true })
+    vim.api.nvim_set_hl(0, "NotesCalloutBg", { link = "CursorLine", default = true })
 end
 
 -- Re-apply after :colorscheme clears our custom groups
@@ -156,6 +186,78 @@ local function apply_mark_highlight(bufnr, row, line)
     end
 end
 
+-- ── callout blocks ────────────────────────────────────────────────────────────
+-- Detects Obsidian-style callouts:
+--   >[!quote]                 ← header line
+--   >[!quote] Custom Title    ← header with optional title override
+--   > body text               ← body lines
+--
+-- Header gets: colored line background + "icon  Title" virt_text prepended
+-- Body gets: same background, `> ` prefix replaced with `│ ` via conceal
+
+local function apply_callouts(bufnr, lines)
+    local i = 1
+    while i <= #lines do
+        local line = lines[i]
+        local raw_type, rest = line:match("^>%s*%[!(%w+)%]%s*(.*)$")
+
+        if raw_type then
+            local def   = CALLOUT_DEFS[raw_type:lower()]
+            local icon  = def and def.icon or ""
+            local hl    = def and def.hl   or "NotesCallout"
+            local row   = i - 1
+
+            -- Capitalize the displayed type name (or use custom title if present)
+            local display_title = (rest ~= "" and rest)
+                or (raw_type:sub(1,1):upper() .. raw_type:sub(2):lower())
+
+            -- Full-width background on header line
+            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
+                line_hl_group = "NotesCalloutBg",
+                priority      = 60,
+            })
+
+            -- Conceal >[!type] or >[!type] Title — everything up to end of line
+            -- by hiding `>[!` and `]` to leave just the type name, then overlaying
+            -- with icon + title using virt_text at the start of the line.
+            local header_end = #line
+            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
+                end_col      = header_end,
+                conceal      = "",
+            })
+            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
+                virt_text          = { { " " .. icon .. "  " .. display_title, hl } },
+                virt_text_pos      = "overlay",
+                priority           = 61,
+            })
+
+            -- Walk following `> ` body lines
+            i = i + 1
+            while i <= #lines do
+                local body = lines[i]
+                if not body:match("^>") then break end
+
+                local brow = i - 1
+                vim.api.nvim_buf_set_extmark(bufnr, ns, brow, 0, {
+                    line_hl_group = "NotesCalloutBg",
+                    priority      = 60,
+                })
+
+                -- Replace `> ` prefix (the `>` + optional space) with `│`
+                local gt_end = body:match("^(>%s?)") and #body:match("^(>%s?)") or 1
+                vim.api.nvim_buf_set_extmark(bufnr, ns, brow, 0, {
+                    end_col = gt_end,
+                    conceal = "│",
+                })
+
+                i = i + 1
+            end
+        else
+            i = i + 1
+        end
+    end
+end
+
 -- ── fenced code blocks ────────────────────────────────────────────────────────
 
 local function apply_code_blocks(bufnr, lines)
@@ -184,6 +286,7 @@ local function apply(bufnr)
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     apply_frontmatter(bufnr, lines)
     apply_code_blocks(bufnr, lines)
+    apply_callouts(bufnr, lines)
     for lnum, line in ipairs(lines) do
         local row = lnum - 1
         apply_wikilinks(bufnr, row, line)
