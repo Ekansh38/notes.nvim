@@ -62,11 +62,12 @@ function M.setup(opts)
             end
 
             -- Vault-specific comfort settings
-            vim.opt_local.conceallevel = 2      -- required for extmark conceal to hide brackets
-            vim.opt_local.wrap         = true   -- long lines wrap instead of scrolling sideways
-            vim.opt_local.linebreak    = true   -- wrap at word boundaries, not mid-word
-            vim.opt_local.spell        = true   -- spell checking
+            vim.opt_local.conceallevel = 2       -- required for extmark conceal to hide brackets
+            vim.opt_local.wrap         = true    -- long lines wrap instead of scrolling sideways
+            vim.opt_local.linebreak    = true    -- wrap at word boundaries, not mid-word
+            vim.opt_local.spell        = true    -- spell checking
             vim.opt_local.spelllang    = "en_us"
+            vim.opt_local.colorcolumn  = "100"   -- subtle guide; 100 is a comfortable modern width
 
             -- Extmark-based concealment (wikilinks, inline code, ==highlight==)
             require("notes.conceal").attach(bufnr)

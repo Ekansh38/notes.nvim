@@ -62,9 +62,13 @@ local function setup_highlights()
     -- YAML frontmatter delimiters
     vim.api.nvim_set_hl(0, "NotesYAMLDelim", { link = "Comment", default = true })
 
+    -- Dead wikilinks — [[NoteThатDoesntExist]] shown in warning color
+    vim.api.nvim_set_hl(0, "NotesDeadLink", { link = "DiagnosticWarn", default = true })
+
     -- Callout blocks
     vim.api.nvim_set_hl(0, "NotesCallout",   { link = "Comment",    default = true })
     vim.api.nvim_set_hl(0, "NotesCalloutBg", { link = "CursorLine", default = true })
+
 end
 
 -- Re-apply after :colorscheme clears our custom groups
@@ -118,7 +122,8 @@ end
 -- ── wikilinks ─────────────────────────────────────────────────────────────────
 
 local function apply_wikilinks(bufnr, row, line)
-    local pos = 1
+    local util = require("notes.util")
+    local pos  = 1
     while pos <= #line do
         local open_s, open_e = line:find("%[%[", pos)
         if not open_s then break end
@@ -128,14 +133,20 @@ local function apply_wikilinks(bufnr, row, line)
 
         local inner = line:sub(open_e + 1, close_s - 1)
         local pipe  = inner:find("|", 1, true)
+        local hash  = inner:find("#", 1, true)
+
+        -- Strip alias and heading to get the bare note title for lookup
+        local lookup_end   = math.min(pipe or #inner + 1, hash or #inner + 1) - 1
+        local lookup_title = vim.trim(inner:sub(1, lookup_end))
+        local hl           = util.find_note(lookup_title) and "NotesWikiLink" or "NotesDeadLink"
 
         conceal(bufnr, row, open_s, open_e)
 
         if pipe then
             conceal(bufnr, row, open_e + 1, open_e + pipe)
-            highlight(bufnr, row, open_e + pipe + 1, close_s - 1, "NotesWikiLink")
+            highlight(bufnr, row, open_e + pipe + 1, close_s - 1, hl)
         else
-            highlight(bufnr, row, open_e + 1, close_s - 1, "NotesWikiLink")
+            highlight(bufnr, row, open_e + 1, close_s - 1, hl)
         end
 
         conceal(bufnr, row, close_s, close_e)
