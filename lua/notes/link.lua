@@ -31,23 +31,41 @@ function M.get_link_at_cursor()
 end
 
 function M.follow()
-    local title = M.get_link_at_cursor()
-    if not title then
-        -- not on a wikilink — fall back to built-in gf, silently swallow "no file" errors
+    local raw = M.get_link_at_cursor()
+    if not raw then
         pcall(vim.cmd, "normal! gf")
         return
     end
 
+    -- Split [[Note Title#Heading]] into note part and optional heading
+    local note_part, heading = raw:match("^([^#]+)#(.+)$")
+    if not note_part then note_part = raw end
+    note_part = vim.trim(note_part)
+    heading   = heading and vim.trim(heading) or nil
+
     local util = require("notes.util")
-    local path = util.find_note(title)
+    local path = util.find_note(note_part)
 
     if path then
         vim.cmd("edit " .. vim.fn.fnameescape(path))
+
+        -- Jump to the heading if one was specified
+        if heading then
+            local lower_h = heading:lower()
+            local lines   = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+            for lnum, line in ipairs(lines) do
+                local h = line:match("^#+%s+(.+)$")
+                if h and h:lower() == lower_h then
+                    vim.api.nvim_win_set_cursor(0, { lnum, 0 })
+                    vim.cmd("normal! zz")
+                    break
+                end
+            end
+        end
     else
-        -- Note doesn't exist: create it in vault root, open template picker
-        local cfg       = require("notes").config
-        local safe      = title:gsub("[/\\]", "-") -- no path separators in title
-        local new_path  = cfg.vault_path .. "/" .. safe .. ".md"
+        local cfg      = require("notes").config
+        local safe     = note_part:gsub("[/\\]", "-")
+        local new_path = cfg.vault_path .. "/" .. safe .. ".md"
         require("notes.note").create({ title = safe, path = new_path })
     end
 end

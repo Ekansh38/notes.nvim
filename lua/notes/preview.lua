@@ -10,8 +10,10 @@ function M.show()
         return
     end
 
-    -- [[Note#Heading]] or [[Note|Alias]] — get just the note title part
+    -- Split [[Note#Heading]] into parts
     local note_title = vim.trim(raw_title:match("^([^#]+)") or raw_title)
+    local heading    = raw_title:match("^[^#]+#(.+)$")
+    if heading then heading = vim.trim(heading) end
 
     local path = require("notes.util").find_note(note_title)
     if not path then
@@ -21,9 +23,18 @@ function M.show()
 
     local all_lines = vim.fn.readfile(path)
 
-    -- Skip frontmatter
+    -- Find where to start: heading section if specified, else after frontmatter
     local body_start = 1
-    if all_lines[1] == "---" then
+    if heading then
+        local lower_h = heading:lower()
+        for i, line in ipairs(all_lines) do
+            local h = line:match("^#+%s+(.+)$")
+            if h and h:lower() == lower_h then
+                body_start = i
+                break
+            end
+        end
+    elseif all_lines[1] == "---" then
         for i = 2, #all_lines do
             if all_lines[i] == "---" or all_lines[i] == "..." then
                 body_start = i + 1
@@ -32,7 +43,7 @@ function M.show()
         end
     end
 
-    -- Collect up to 25 non-empty-leading lines
+    -- Collect up to 25 lines from start point
     local preview = {}
     local found   = false
     for i = body_start, #all_lines do
@@ -62,7 +73,7 @@ function M.show()
         height    = height,
         style     = "minimal",
         border    = "rounded",
-        title     = " " .. note_title .. " ",
+        title     = " " .. note_title .. (heading and (" # " .. heading) or "") .. " ",
         title_pos = "center",
     })
 
