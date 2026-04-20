@@ -33,8 +33,8 @@ end
 function M.follow()
     local title = M.get_link_at_cursor()
     if not title then
-        -- not on a wikilink — fall back to built-in gf (normal! ignores remaps)
-        vim.cmd("normal! gf")
+        -- not on a wikilink — fall back to built-in gf, silently swallow "no file" errors
+        pcall(vim.cmd, "normal! gf")
         return
     end
 

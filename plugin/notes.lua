@@ -16,8 +16,26 @@ vim.api.nvim_create_user_command("NotesRename", function()
     require("notes.rename").rename()
 end, { desc = "Rename current note and update all links" })
 
--- <leader>od is global: open daily note from anywhere, then <C-o> to jump back.
--- lazy = false ensures this is always loaded at startup regardless of filetype.
 vim.keymap.set("n", "<leader>od", function()
     require("notes.daily").open()
-end, { desc = "Notes: daily note (global)" })
+end, { desc = "Notes: daily note" })
+
+vim.api.nvim_create_user_command("NotesTagSearch", function()
+    require("notes.tag").search()
+end, { desc = "Search notes by tag" })
+
+vim.api.nvim_create_user_command("NotesOrphans", function()
+    require("notes.orphan").show()
+end, { desc = "Show orphan notes (no backlinks)" })
+
+vim.api.nvim_create_user_command("NotesInject", function()
+    require("notes.note").inject()
+end, { desc = "Inject a template into the current note" })
+
+vim.api.nvim_create_user_command("NotesStats", function()
+    require("notes.stats").show()
+end, { desc = "Show vault statistics" })
+
+vim.api.nvim_create_user_command("NotesExtract", function()
+    require("notes.extract").extract()
+end, { desc = "Extract visual selection into a new note" })

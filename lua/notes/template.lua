@@ -20,10 +20,27 @@ local TOKENS = {
 table.sort(TOKENS, function(a, b) return #a[1] > #b[1] end)
 
 local function format_moment(fmt)
+    local replacements = {}
     local result = fmt
-    for _, pair in ipairs(TOKENS) do
-        result = result:gsub(pair[1], pair[2]())
+
+    -- Phase 1: replace each token with a unique control-character placeholder.
+    -- Longest tokens are first (TOKENS is pre-sorted), so "MMMM" wins before "MM".
+    -- Using \x01 as a delimiter — never appears in any date value — prevents
+    -- "M" from matching the M in an already-substituted "Monday", etc.
+    for i, pair in ipairs(TOKENS) do
+        local ph  = string.format("\x01%02d\x01", i)
+        local val = pair[2]()
+        result = result:gsub(pair[1], function()
+            replacements[ph] = val
+            return ph
+        end)
     end
+
+    -- Phase 2: swap placeholders for actual values.
+    for ph, val in pairs(replacements) do
+        result = result:gsub(vim.pesc(ph), function() return val end)
+    end
+
     return result
 end
 
