@@ -6,6 +6,7 @@ local _tags             = nil  -- { [tag] = { "/path.md", ... } }
 local _has_backlinks    = nil  -- { ["/path.md"] = true }
 local _backlink_counts  = nil  -- { ["/path.md"] = count }
 local _pinned           = nil  -- { [title] = true }
+local _forward_links    = nil  -- { ["/path.md"] = { "/target.md", ... } }
 
 -- ── frontmatter parser ────────────────────────────────────────────────────────
 -- Reads aliases and tags from YAML frontmatter in a single pass over lines.
@@ -107,6 +108,7 @@ local function build_index()
     _has_backlinks   = {}
     _backlink_counts = {}
     _pinned          = {}
+    _forward_links   = {}
 
     local files      = vim.fn.glob(cfg.vault_path .. "/**/*.md", false, true)
     local file_lines = {}  -- path → lines (reused in pass 2)
@@ -144,13 +146,16 @@ local function build_index()
 
     -- Pass 2
     for path, lines in pairs(file_lines) do
+        _forward_links[path] = {}
         local content = table.concat(lines, "\n")
         for inner in content:gmatch("%[%[([^%]]+)%]%]") do
-            local linked = vim.trim(inner:match("^([^|]+)") or inner)
+            -- Strip alias (|) and heading (#) to get bare note title
+            local linked = vim.trim(inner:match("^([^|#]+)") or inner)
             if linked ~= "" then
                 if _index[linked] then
                     local target = _index[linked]
-                    _has_backlinks[target]  = true
+                    _forward_links[path][#_forward_links[path] + 1] = target
+                    _has_backlinks[target]   = true
                     _backlink_counts[target] = (_backlink_counts[target] or 0) + 1
                 else
                     _ghost[linked] = true
@@ -270,6 +275,54 @@ function M.pinned_set()
     return _pinned
 end
 
+-- Full graph data for the web graph view.
+-- Returns { nodes = [...], links = [...] }
+function M.graph_data()
+    if not _index then build_index() end
+
+    -- Invert _tags to get path → tags
+    local path_tags = {}
+    for tag, paths in pairs(_tags) do
+        for _, p in ipairs(paths) do
+            if not path_tags[p] then path_tags[p] = {} end
+            path_tags[p][#path_tags[p] + 1] = tag
+        end
+    end
+
+    -- Nodes — one per unique path (aliases share a path, emit once)
+    local nodes      = {}
+    local seen_paths = {}
+    for title, path in pairs(_index) do
+        if not seen_paths[path] then
+            seen_paths[path] = true
+            nodes[#nodes + 1] = {
+                id        = title,
+                title     = title,
+                path      = path,
+                tags      = path_tags[path] or {},
+                backlinks = _backlink_counts[path] or 0,
+            }
+        end
+    end
+
+    -- Links — source title → target title, deduplicated
+    local links      = {}
+    local seen_links = {}
+    for source_path, targets in pairs(_forward_links) do
+        local src = vim.fn.fnamemodify(source_path, ":t:r")
+        for _, target_path in ipairs(targets) do
+            local tgt = vim.fn.fnamemodify(target_path, ":t:r")
+            local key = src .. "\0" .. tgt
+            if not seen_links[key] then
+                seen_links[key] = true
+                links[#links + 1] = { source = src, target = tgt }
+            end
+        end
+    end
+
+    return { nodes = nodes, links = links }
+end
+
 function M.invalidate()
     _index           = nil
     _ghost           = nil
@@ -277,6 +330,7 @@ function M.invalidate()
     _has_backlinks   = nil
     _backlink_counts = nil
     _pinned          = nil
+    _forward_links   = nil
 end
 
 return M

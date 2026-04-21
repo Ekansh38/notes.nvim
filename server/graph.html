@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>notes graph</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d0d0d;
+    color: #ebdbb2;
+    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+  }
+
+  /* ── graph canvas ─────────────────────────────────────── */
+  #svg { width: 100vw; height: 100vh; display: block; }
+
+  .link {
+    stroke: #2a2a2a;
+    stroke-width: 1.2;
+    transition: stroke 0.15s, stroke-opacity 0.15s;
+  }
+  .link.highlighted { stroke: #7c6f64; stroke-width: 1.8; }
+  .link.dimmed      { stroke-opacity: 0.08; }
+
+  .node circle {
+    stroke-width: 1.5;
+    cursor: pointer;
+    transition: r 0.2s, stroke 0.15s, fill-opacity 0.15s;
+  }
+  .node circle.dimmed { fill-opacity: 0.15; stroke-opacity: 0.15; }
+  .node circle.selected { stroke: #fff !important; stroke-width: 2.5; }
+
+  .node text {
+    fill: #a89984;
+    font-size: 11px;
+    pointer-events: none;
+    text-anchor: middle;
+    dominant-baseline: hanging;
+    transition: opacity 0.2s, fill 0.15s;
+  }
+  .node text.highlighted { fill: #ebdbb2; }
+  .node text.dimmed      { opacity: 0.15; }
+
+  /* ── top bar ─────────────────────────────────────────── */
+  #topbar {
+    position: fixed;
+    top: 16px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px; align-items: center;
+    z-index: 100;
+  }
+
+  #search {
+    background: #1c1c1c;
+    border: 1px solid #3c3836;
+    border-radius: 6px;
+    color: #ebdbb2;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 12px;
+    width: 220px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  #search:focus { border-color: #7c6f64; }
+  #search::placeholder { color: #504945; }
+
+  #refresh-btn {
+    background: #1c1c1c;
+    border: 1px solid #3c3836;
+    border-radius: 6px;
+    color: #a89984;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 5px 10px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  #refresh-btn:hover { border-color: #7c6f64; color: #ebdbb2; }
+
+  /* ── stats ───────────────────────────────────────────── */
+  #stats {
+    position: fixed;
+    bottom: 16px; left: 16px;
+    color: #504945;
+    font-size: 11px;
+    z-index: 100;
+    line-height: 1.6;
+  }
+
+  /* ── preview panel ───────────────────────────────────── */
+  #preview {
+    position: fixed;
+    top: 0; right: -380px;
+    width: 360px; height: 100vh;
+    background: #111111;
+    border-left: 1px solid #1f1f1f;
+    display: flex; flex-direction: column;
+    transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    overflow: hidden;
+  }
+  #preview.open { right: 0; }
+
+  #preview-header {
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid #1f1f1f;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 8px;
+  }
+  #preview-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ebdbb2;
+    line-height: 1.4;
+    flex: 1;
+  }
+  #preview-close {
+    background: none; border: none;
+    color: #504945; cursor: pointer;
+    font-size: 16px; line-height: 1;
+    padding: 2px 4px;
+    transition: color 0.15s;
+  }
+  #preview-close:hover { color: #ebdbb2; }
+
+  #preview-meta {
+    padding: 8px 16px;
+    border-bottom: 1px solid #1f1f1f;
+    font-size: 11px;
+    color: #7c6f64;
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  #preview-meta span { display: flex; align-items: center; gap: 4px; }
+
+  #preview-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #d5c4a1;
+  }
+  #preview-body::-webkit-scrollbar { width: 4px; }
+  #preview-body::-webkit-scrollbar-track { background: transparent; }
+  #preview-body::-webkit-scrollbar-thumb { background: #3c3836; border-radius: 2px; }
+
+  /* markdown styles inside preview */
+  #preview-body h1, #preview-body h2, #preview-body h3 {
+    color: #ebdbb2; margin: 1em 0 0.4em;
+  }
+  #preview-body h1 { font-size: 16px; }
+  #preview-body h2 { font-size: 14px; }
+  #preview-body h3 { font-size: 13px; }
+  #preview-body p  { margin: 0.5em 0; }
+  #preview-body code {
+    background: #1c1c1c; border-radius: 3px;
+    padding: 1px 5px; font-size: 11px; color: #b8bb26;
+  }
+  #preview-body pre {
+    background: #1c1c1c; border-radius: 5px;
+    padding: 10px 12px; overflow-x: auto; margin: 0.6em 0;
+  }
+  #preview-body pre code { background: none; padding: 0; }
+  #preview-body blockquote {
+    border-left: 3px solid #3c3836;
+    margin: 0.5em 0; padding: 0 0 0 12px; color: #928374;
+  }
+  #preview-body a { color: #83a598; text-decoration: none; }
+  #preview-body strong { color: #ebdbb2; }
+  #preview-body em { color: #d3869b; }
+  #preview-body ul, #preview-body ol { padding-left: 1.2em; }
+  #preview-body li { margin: 0.2em 0; }
+  #preview-body hr { border: none; border-top: 1px solid #1f1f1f; margin: 1em 0; }
+
+  #open-btn {
+    margin: 0 16px 16px;
+    background: #1c1c1c;
+    border: 1px solid #3c3836;
+    border-radius: 6px;
+    color: #a89984;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 8px 14px;
+    text-align: center;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  #open-btn:hover { border-color: #83a598; color: #83a598; background: #161616; }
+
+  /* ── tag legend ─────────────────────────────────────── */
+  #legend {
+    position: fixed;
+    bottom: 16px; right: 16px;
+    display: flex; flex-direction: column; gap: 4px;
+    z-index: 100;
+    max-height: 40vh; overflow-y: auto;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #7c6f64;
+    cursor: pointer; padding: 2px 0;
+    transition: color 0.15s;
+  }
+  .legend-item:hover { color: #ebdbb2; }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+
+  /* ── toast ──────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 48px; left: 50%;
+    transform: translateX(-50%);
+    background: #1c1c1c; border: 1px solid #3c3836;
+    border-radius: 6px; color: #a89984;
+    font-size: 12px; padding: 8px 16px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s; z-index: 300;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <input id="search" type="text" placeholder="search notes…" autocomplete="off" spellcheck="false">
+  <button id="refresh-btn" title="Refresh graph data">↻</button>
+</div>
+
+<svg id="svg">
+  <defs>
+    <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#2a2a2a"/>
+    </marker>
+  </defs>
+  <g id="root">
+    <g id="links-layer"></g>
+    <g id="nodes-layer"></g>
+  </g>
+</svg>
+
+<div id="stats"></div>
+<div id="legend"></div>
+
+<div id="preview">
+  <div id="preview-header">
+    <div id="preview-title">—</div>
+    <button id="preview-close">✕</button>
+  </div>
+  <div id="preview-meta"></div>
+  <div id="preview-body"></div>
+  <button id="open-btn">open in neovim →</button>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// ── config ──────────────────────────────────────────────────────────────────
+
+const TAG_PALETTE = [
+  "#458588", "#98971a", "#d79921", "#b16286", "#689d6a",
+  "#d65d0e", "#cc241d", "#076678", "#427b58", "#8f3f71",
+  "#79740e", "#b57614",
+];
+const DEFAULT_NODE_COLOR = "#3c3836";
+const ORPHAN_COLOR       = "#282828";
+
+// ── state ────────────────────────────────────────────────────────────────────
+
+let graphData      = null;
+let simulation     = null;
+let selectedNode   = null;
+let tagColorMap    = {};
+let activeTagFilter = null;
+let searchQuery    = "";
+let currentPath    = null; // path of currently previewed note
+let saveTimer      = null;
+
+const svg       = d3.select("#svg");
+const root      = d3.select("#root");
+const linksLayer = d3.select("#links-layer");
+const nodesLayer = d3.select("#nodes-layer");
+
+const W = () => window.innerWidth;
+const H = () => window.innerHeight;
+
+// ── init ─────────────────────────────────────────────────────────────────────
+
+async function init() {
+  await loadGraph();
+}
+
+async function loadGraph() {
+  try {
+    const res  = await fetch("/graph.json");
+    const data = await res.json();
+    graphData  = data;
+    buildTagColors(data.nodes);
+    render(data);
+    updateStats(data);
+    buildLegend();
+  } catch (e) {
+    console.error("Failed to load graph:", e);
+    toast("Failed to load graph data");
+  }
+}
+
+// ── tag colors ───────────────────────────────────────────────────────────────
+
+function buildTagColors(nodes) {
+  tagColorMap = {};
+  const tags = new Set();
+  nodes.forEach(n => (n.tags || []).forEach(t => tags.add(t)));
+  let i = 0;
+  tags.forEach(t => { tagColorMap[t] = TAG_PALETTE[i++ % TAG_PALETTE.length]; });
+}
+
+function nodeColor(d) {
+  if (!d.tags || d.tags.length === 0) return d.backlinks === 0 ? ORPHAN_COLOR : DEFAULT_NODE_COLOR;
+  return tagColorMap[d.tags[0]] || DEFAULT_NODE_COLOR;
+}
+
+function nodeRadius(d) {
+  return 5 + Math.sqrt(d.backlinks || 0) * 3.5;
+}
+
+// ── render ───────────────────────────────────────────────────────────────────
+
+function render(data) {
+  linksLayer.selectAll("*").remove();
+  nodesLayer.selectAll("*").remove();
+
+  const nodes = data.nodes.map(d => ({ ...d }));
+  const links = data.links.map(d => ({ ...d }));
+
+  // Restore saved positions from server-embedded x/y
+  nodes.forEach(n => {
+    if (n.x != null) { n.fx = n.x; n.fy = n.y; }
+  });
+
+  // ── simulation ────────────────────────────────────────
+  if (simulation) simulation.stop();
+
+  simulation = d3.forceSimulation(nodes)
+    .force("link",    d3.forceLink(links).id(d => d.id).distance(120).strength(0.3))
+    .force("charge",  d3.forceManyBody().strength(d => -120 - nodeRadius(d) * 30))
+    .force("center",  d3.forceCenter(W() / 2, H() / 2).strength(0.05))
+    .force("collide", d3.forceCollide(d => nodeRadius(d) + 12))
+    .alphaDecay(0.03)
+    .on("tick", ticked);
+
+  // Unpin nodes after short settle so physics stays live for new notes
+  setTimeout(() => {
+    nodes.forEach(n => { n.fx = null; n.fy = null; });
+    simulation.alpha(0.1).restart();
+  }, 1200);
+
+  // ── links ─────────────────────────────────────────────
+  const link = linksLayer.selectAll(".link")
+    .data(links)
+    .join("line")
+    .attr("class", "link");
+
+  // ── nodes ─────────────────────────────────────────────
+  const node = nodesLayer.selectAll(".node")
+    .data(nodes)
+    .join("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", dragStart)
+      .on("drag",  dragged)
+      .on("end",   dragEnd));
+
+  node.append("circle")
+    .attr("r",      d => nodeRadius(d))
+    .attr("fill",   d => nodeColor(d))
+    .attr("stroke", d => d3.color(nodeColor(d))?.brighter(0.8) || "#555");
+
+  node.append("text")
+    .attr("dy", d => nodeRadius(d) + 5)
+    .text(d => d.title)
+    .style("opacity", 0); // hidden until zoomed in
+
+  // ── interactions ──────────────────────────────────────
+  node.on("mouseenter", (event, d) => highlightNode(d, node, link))
+      .on("mouseleave", () => { if (d => d !== selectedNode) clearHighlight(node, link); })
+      .on("click",      (event, d) => {
+        event.stopPropagation();
+        selectNode(d, node, link);
+      });
+
+  svg.on("click", () => {
+    selectedNode = null;
+    currentPath  = null;
+    clearHighlight(node, link);
+    closePreview();
+  });
+
+  // ── zoom ──────────────────────────────────────────────
+  const zoom = d3.zoom()
+    .scaleExtent([0.1, 8])
+    .on("zoom", ({ transform }) => {
+      root.attr("transform", transform);
+      const k = transform.k;
+      // Labels fade in above zoom 1.4
+      const labelOpacity = Math.max(0, Math.min(1, (k - 1.2) / 0.4));
+      nodesLayer.selectAll(".node text").style("opacity", labelOpacity);
+    });
+
+  svg.call(zoom);
+
+  function ticked() {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
+  }
+
+  function dragStart(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x; d.fy = d.y;
+  }
+  function dragged(event, d) {
+    d.fx = event.x; d.fy = event.y;
+  }
+  function dragEnd(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null; d.fy = null;
+    schedulePositionSave(nodes);
+  }
+
+  // Store references on the window so search/filter can access them
+  window._graphNodes = nodes;
+  window._graphLinks = links;
+  window._d3Nodes    = node;
+  window._d3Links    = link;
+}
+
+// ── highlight ────────────────────────────────────────────────────────────────
+
+function getConnectedIds(d) {
+  const ids = new Set([d.id]);
+  (window._graphLinks || []).forEach(l => {
+    const sid = typeof l.source === "object" ? l.source.id : l.source;
+    const tid = typeof l.target === "object" ? l.target.id : l.target;
+    if (sid === d.id) ids.add(tid);
+    if (tid === d.id) ids.add(sid);
+  });
+  return ids;
+}
+
+function highlightNode(d, node, link) {
+  const connected = getConnectedIds(d);
+
+  link.classed("highlighted", l => {
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    return s === d.id || t === d.id;
+  }).classed("dimmed", l => {
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    return s !== d.id && t !== d.id;
+  });
+
+  node.select("circle").classed("dimmed", n => !connected.has(n.id));
+  node.select("text").classed("dimmed", n => !connected.has(n.id))
+                     .classed("highlighted", n => connected.has(n.id));
+}
+
+function clearHighlight(node, link) {
+  link.classed("highlighted", false).classed("dimmed", false);
+  node.select("circle").classed("dimmed", false).classed("selected", false);
+  node.select("text").classed("dimmed", false).classed("highlighted", false);
+}
+
+// ── select + preview ─────────────────────────────────────────────────────────
+
+function selectNode(d, node, link) {
+  selectedNode = d;
+  clearHighlight(node, link);
+  highlightNode(d, node, link);
+  node.select("circle").classed("selected", n => n.id === d.id);
+  showPreview(d);
+}
+
+async function showPreview(d) {
+  currentPath = d.path;
+  document.getElementById("preview-title").textContent = d.title;
+
+  const meta = document.getElementById("preview-meta");
+  meta.innerHTML = "";
+  if ((d.tags || []).length > 0) {
+    const tagSpan = document.createElement("span");
+    tagSpan.textContent = d.tags.map(t => "#" + t).join("  ");
+    meta.appendChild(tagSpan);
+  }
+  const blSpan = document.createElement("span");
+  blSpan.textContent = `↙ ${d.backlinks} backlinks`;
+  meta.appendChild(blSpan);
+
+  document.getElementById("preview-body").innerHTML = "<em style='color:#504945'>loading…</em>";
+  document.getElementById("preview").classList.add("open");
+
+  try {
+    const res  = await fetch("/note?p=" + encodeURIComponent(d.path));
+    const text = await res.text();
+    // Strip frontmatter for preview
+    const body = text.replace(/^---[\s\S]*?---\n?/, "");
+    document.getElementById("preview-body").innerHTML = marked.parse(body);
+  } catch {
+    document.getElementById("preview-body").innerHTML = "<em style='color:#504945'>could not load note</em>";
+  }
+}
+
+function closePreview() {
+  document.getElementById("preview").classList.remove("open");
+  currentPath = null;
+}
+
+// ── open in neovim ───────────────────────────────────────────────────────────
+
+document.getElementById("open-btn").addEventListener("click", async () => {
+  if (!currentPath) return;
+  await fetch("/open?p=" + encodeURIComponent(currentPath));
+  toast("opened in neovim");
+});
+
+// Double-click node → open directly
+document.getElementById("svg").addEventListener("dblclick", async (event) => {
+  if (selectedNode) {
+    await fetch("/open?p=" + encodeURIComponent(selectedNode.path));
+    toast("opened in neovim");
+  }
+});
+
+// ── position persistence ─────────────────────────────────────────────────────
+
+function schedulePositionSave(nodes) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => savePositions(nodes), 1500);
+}
+
+async function savePositions(nodes) {
+  const pos = {};
+  nodes.forEach(n => { pos[n.id] = { x: n.x, y: n.y }; });
+  try {
+    await fetch("/positions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pos),
+    });
+  } catch { /* server might have stopped */ }
+}
+
+// ── search ───────────────────────────────────────────────────────────────────
+
+document.getElementById("search").addEventListener("input", (e) => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  applyFilter();
+});
+
+function applyFilter() {
+  const nodes = window._d3Nodes;
+  const links = window._d3Links;
+  if (!nodes) return;
+
+  if (!searchQuery && !activeTagFilter) {
+    nodes.select("circle").classed("dimmed", false);
+    nodes.select("text").classed("dimmed", false);
+    links.classed("dimmed", false);
+    return;
+  }
+
+  const match = d => {
+    const titleOk = !searchQuery || d.title.toLowerCase().includes(searchQuery);
+    const tagOk   = !activeTagFilter || (d.tags || []).includes(activeTagFilter);
+    return titleOk && tagOk;
+  };
+
+  nodes.select("circle").classed("dimmed", d => !match(d));
+  nodes.select("text").classed("dimmed", d => !match(d));
+  links.classed("dimmed", l => {
+    const s = typeof l.source === "object" ? l.source : window._graphNodes.find(n => n.id === l.source);
+    const t = typeof l.target === "object" ? l.target : window._graphNodes.find(n => n.id === l.target);
+    return !match(s) && !match(t);
+  });
+}
+
+// ── legend + tag filter ──────────────────────────────────────────────────────
+
+function buildLegend() {
+  const legend = document.getElementById("legend");
+  legend.innerHTML = "";
+  Object.entries(tagColorMap).forEach(([tag, color]) => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.innerHTML = `<div class="legend-dot" style="background:${color}"></div>#${tag}`;
+    item.addEventListener("click", () => {
+      activeTagFilter = activeTagFilter === tag ? null : tag;
+      legend.querySelectorAll(".legend-item").forEach(el => el.style.opacity = "0.4");
+      if (activeTagFilter) item.style.opacity = "1";
+      else legend.querySelectorAll(".legend-item").forEach(el => el.style.opacity = "1");
+      applyFilter();
+    });
+    legend.appendChild(item);
+  });
+
+  // Untagged
+  if (document.querySelector(".legend-item")) {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.innerHTML = `<div class="legend-dot" style="background:${DEFAULT_NODE_COLOR}"></div>untagged`;
+    legend.appendChild(item);
+  }
+}
+
+// ── stats ────────────────────────────────────────────────────────────────────
+
+function updateStats(data) {
+  const orphans = data.nodes.filter(n => n.backlinks === 0).length;
+  document.getElementById("stats").innerHTML =
+    `${data.nodes.length} notes &nbsp;·&nbsp; ${data.links.length} links &nbsp;·&nbsp; ${orphans} orphans`;
+}
+
+// ── refresh ───────────────────────────────────────────────────────────────────
+
+document.getElementById("refresh-btn").addEventListener("click", async () => {
+  await loadGraph();
+  toast("graph refreshed");
+});
+
+// ── preview close ─────────────────────────────────────────────────────────────
+
+document.getElementById("preview-close").addEventListener("click", closePreview);
+
+// ── toast ─────────────────────────────────────────────────────────────────────
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+// ── resize ───────────────────────────────────────────────────────────────────
+
+window.addEventListener("resize", () => {
+  if (simulation) simulation.force("center", d3.forceCenter(W() / 2, H() / 2));
+});
+
+// ── keyboard shortcuts ───────────────────────────────────────────────────────
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    selectedNode = null; currentPath = null;
+    if (window._d3Nodes) clearHighlight(window._d3Nodes, window._d3Links);
+    closePreview();
+    document.getElementById("search").value = "";
+    searchQuery = ""; activeTagFilter = null;
+    applyFilter();
+  }
+  if (e.key === "f" && !e.target.matches("input")) {
+    document.getElementById("search").focus();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && currentPath) {
+    fetch("/open?p=" + encodeURIComponent(currentPath)).then(() => toast("opened in neovim"));
+  }
+});
+
+// ── start ─────────────────────────────────────────────────────────────────────
+
+init();
+</script>
+</body>
+</html>
