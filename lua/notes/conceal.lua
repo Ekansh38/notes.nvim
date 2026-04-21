@@ -269,6 +269,61 @@ local function apply_callouts(bufnr, lines)
     end
 end
 
+-- ── markdown links ────────────────────────────────────────────────────────────
+-- [text](url) → conceals [ and ](url), leaves text visible, appends ↗ icon.
+-- Skips wikilinks ([[) and image links (![ ).
+
+local function apply_md_links(bufnr, row, line)
+    local pos = 1
+    while pos <= #line do
+        local bracket_s = line:find("%[", pos)
+        if not bracket_s then break end
+
+        -- Skip [[ (wikilinks) and ![ (images)
+        local prev = bracket_s > 1 and line:sub(bracket_s - 1, bracket_s - 1) or ""
+        if prev == "[" or prev == "!" then
+            pos = bracket_s + 1
+            goto next
+        end
+
+        -- Find the closing ] followed immediately by (
+        local bracket_e = line:find("%]%(", bracket_s + 1)
+        if not bracket_e then break end
+
+        -- Make sure no nested [ between open and close
+        local inner_bracket = line:find("%[", bracket_s + 1, true)
+        if inner_bracket and inner_bracket < bracket_e then
+            pos = bracket_s + 1
+            goto next
+        end
+
+        -- Find matching ) tracking depth (URLs can contain parens)
+        local paren_s = bracket_e + 1
+        local depth   = 1
+        local paren_e = nil
+        for i = paren_s + 1, #line do
+            local c = line:sub(i, i)
+            if     c == "(" then depth = depth + 1
+            elseif c == ")" then
+                depth = depth - 1
+                if depth == 0 then paren_e = i; break end
+            end
+        end
+        if not paren_e then break end
+
+        -- Conceal the opening [
+        conceal(bufnr, row, bracket_s, bracket_s)
+        -- Conceal ](url) → show as ↗ icon
+        vim.api.nvim_buf_set_extmark(bufnr, ns, row, bracket_e - 1, {
+            end_col = paren_e,
+            conceal = "↗",
+        })
+
+        pos = paren_e + 1
+        ::next::
+    end
+end
+
 -- ── fenced code blocks ────────────────────────────────────────────────────────
 
 local function apply_code_blocks(bufnr, lines)
@@ -301,6 +356,7 @@ local function apply(bufnr)
     for lnum, line in ipairs(lines) do
         local row = lnum - 1
         apply_wikilinks(bufnr, row, line)
+        apply_md_links(bufnr, row, line)
         apply_inline_code(bufnr, row, line)
         apply_mark_highlight(bufnr, row, line)
     end

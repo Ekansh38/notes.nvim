@@ -20,28 +20,39 @@ local function server_running()
 end
 
 -- Write graph JSON (with saved positions injected) to vault.
+-- Returns true on success, false + error string on failure.
 local function write_graph_json(cfg)
     local util = require("notes.util")
-    local data = util.graph_data()
+    local ok_data, data = pcall(require("notes.util").graph_data)
+    if not ok_data then
+        return false, "graph_data() failed: " .. tostring(data)
+    end
 
     -- Inject saved positions so nodes start where the user left them
     local pos_file = cfg.vault_path .. "/.notes-graph-positions.json"
     if vim.fn.filereadable(pos_file) == 1 then
         local raw = table.concat(vim.fn.readfile(pos_file), "")
-        local ok, positions = pcall(vim.fn.json_decode, raw)
-        if ok and type(positions) == "table" then
+        local ok_pos, positions = pcall(vim.fn.json_decode, raw)
+        if ok_pos and type(positions) == "table" then
             for _, node in ipairs(data.nodes) do
                 local p = positions[node.id]
-                if p then
-                    node.x = p.x
-                    node.y = p.y
-                end
+                if p then node.x = p.x; node.y = p.y end
             end
         end
     end
 
+    local ok_enc, json_str = pcall(vim.fn.json_encode, data)
+    if not ok_enc then
+        return false, "json_encode failed: " .. tostring(json_str)
+    end
+
     local json_path = cfg.vault_path .. "/.notes-graph.json"
-    vim.fn.writefile({ vim.fn.json_encode(data) }, json_path)
+    local ret = vim.fn.writefile({ json_str }, json_path)
+    if ret ~= 0 then
+        return false, "writefile failed for: " .. json_path
+    end
+
+    return true, nil
 end
 
 function M.open()
@@ -52,7 +63,11 @@ function M.open()
     local html      = dir .. "/server/graph.html"
 
     -- Regenerate graph data every time so it's always fresh
-    write_graph_json(cfg)
+    local ok, err = write_graph_json(cfg)
+    if not ok then
+        vim.notify("notes graph: " .. err, vim.log.levels.ERROR)
+        return
+    end
 
     if server_running() then
         -- Server already up — just (re)open the browser

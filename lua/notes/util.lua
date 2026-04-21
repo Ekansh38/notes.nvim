@@ -278,7 +278,7 @@ end
 -- Full graph data for the web graph view.
 -- Returns { nodes = [...], links = [...] }
 function M.graph_data()
-    if not _index then build_index() end
+    if not _index or not _forward_links then build_index() end
 
     -- Invert _tags to get path → tags
     local path_tags = {}
