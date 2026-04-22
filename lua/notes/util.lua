@@ -289,15 +289,19 @@ function M.graph_data()
         end
     end
 
-    -- Nodes — one per unique path (aliases share a path, emit once)
+    -- Nodes — one per unique path; ID is always the filename so it stays
+    -- consistent with how link source/target are derived (fnamemodify :t:r).
+    -- Iterating over _index values (paths) might revisit the same path via
+    -- aliases, so seen_paths deduplicates.
     local nodes      = {}
     local seen_paths = {}
-    for title, path in pairs(_index) do
+    for _, path in pairs(_index) do
         if not seen_paths[path] then
             seen_paths[path] = true
+            local fname = vim.fn.fnamemodify(path, ":t:r")
             nodes[#nodes + 1] = {
-                id        = title,
-                title     = title,
+                id        = fname,
+                title     = fname,
                 path      = path,
                 tags      = path_tags[path] or {},
                 backlinks = _backlink_counts[path] or 0,
@@ -305,7 +309,7 @@ function M.graph_data()
         end
     end
 
-    -- Links — source title → target title, deduplicated
+    -- Links — source filename → target filename, deduplicated
     local links      = {}
     local seen_links = {}
     for source_path, targets in pairs(_forward_links) do

@@ -69,6 +69,9 @@ local function setup_highlights()
     vim.api.nvim_set_hl(0, "NotesCallout",   { link = "Comment",    default = true })
     vim.api.nvim_set_hl(0, "NotesCalloutBg", { link = "CursorLine", default = true })
 
+    -- Horizontal rule (--- in body)
+    vim.api.nvim_set_hl(0, "NotesHRule", { link = "Comment", default = true })
+
 end
 
 -- Re-apply after :colorscheme clears our custom groups
@@ -351,6 +354,42 @@ local function apply_code_blocks(bufnr, lines)
     end
 end
 
+-- ── horizontal rules ─────────────────────────────────────────────────────────
+-- Renders --- / *** / ___ body lines as a visual divider.
+-- Skips the two frontmatter delimiter lines (--- at top of file).
+
+local function apply_hr(bufnr, lines)
+    -- Locate frontmatter end so we don't touch its --- delimiters
+    local fm_end = 0
+    if lines[1] == "---" then
+        for i = 2, #lines do
+            if lines[i] == "---" or lines[i] == "..." then
+                fm_end = i
+                break
+            end
+        end
+    end
+
+    local bar = string.rep("─", 120)   -- wide enough for any reasonable window
+    for lnum = fm_end + 1, #lines do
+        local line = lines[lnum]
+        -- Match ---, ***, ___ (3 or more chars, nothing else on the line)
+        if line:match("^%-%-%-+$") or line:match("^%*%*%*+$") or line:match("^___%+$") then
+            local row = lnum - 1
+            -- Conceal the raw --- so it takes 0 width
+            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
+                end_col = #line,
+                conceal = "",
+            })
+            -- Overlay with a ─ line that fills the window
+            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
+                virt_text     = { { bar, "NotesHRule" } },
+                virt_text_pos = "overlay",
+            })
+        end
+    end
+end
+
 -- ── main apply ────────────────────────────────────────────────────────────────
 
 local function apply(bufnr)
@@ -359,6 +398,7 @@ local function apply(bufnr)
     apply_frontmatter(bufnr, lines)
     apply_code_blocks(bufnr, lines)
     apply_callouts(bufnr, lines)
+    apply_hr(bufnr, lines)
     for lnum, line in ipairs(lines) do
         local row = lnum - 1
         apply_wikilinks(bufnr, row, line)
