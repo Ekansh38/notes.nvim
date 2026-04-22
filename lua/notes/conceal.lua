@@ -315,17 +315,19 @@ local function apply_md_links(bufnr, row, line)
         end
         if not paren_e then break end
 
-        -- Conceal the opening [  (0-width)
-        conceal(bufnr, row, bracket_s, bracket_s)
-        -- Insert ↗ inline right before ](url) so it appears after the link text
-        vim.api.nvim_buf_set_extmark(bufnr, ns, row, bracket_e - 1, {
-            virt_text     = { { "↗", "Comment" } },
-            virt_text_pos = "inline",
-        })
-        -- Conceal ](url) entirely as 0-width — prevents URL from wrapping to blank lines
-        vim.api.nvim_buf_set_extmark(bufnr, ns, row, bracket_e - 1, {
+        local link_text = line:sub(bracket_s + 1, bracket_e - 1)
+
+        -- Conceal the ENTIRE [text](url) span as 0-width so the URL can never
+        -- wrap to blank visual lines.
+        vim.api.nvim_buf_set_extmark(bufnr, ns, row, bracket_s - 1, {
             end_col = paren_e,
             conceal = "",
+        })
+        -- Inline virt_text at the same position shows "text ↗" and shifts
+        -- subsequent content right (no overlap with text after the link).
+        vim.api.nvim_buf_set_extmark(bufnr, ns, row, bracket_s - 1, {
+            virt_text     = { { link_text, "NotesWikiLink" }, { " ↗", "Comment" } },
+            virt_text_pos = "inline",
         })
 
         pos = paren_e + 1
@@ -374,7 +376,7 @@ local function apply_hr(bufnr, lines)
     for lnum = fm_end + 1, #lines do
         local line = lines[lnum]
         -- Match ---, ***, ___ (3 or more chars, nothing else on the line)
-        if line:match("^%-%-%-+$") or line:match("^%*%*%*+$") or line:match("^___%+$") then
+        if line:match("^%-%-%-+$") or line:match("^%*%*%*+$") or line:match("^___+$") then
             local row = lnum - 1
             -- Conceal the raw --- so it takes 0 width
             vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {

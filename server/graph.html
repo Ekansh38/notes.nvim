@@ -68,7 +68,7 @@
   #search:focus { border-color: #7c6f64; }
   #search::placeholder { color: #504945; }
 
-  #refresh-btn {
+  .topbar-btn {
     background: #1c1c1c;
     border: 1px solid #3c3836;
     border-radius: 6px;
@@ -78,7 +78,8 @@
     padding: 5px 10px;
     transition: border-color 0.15s, color 0.15s;
   }
-  #refresh-btn:hover { border-color: #7c6f64; color: #ebdbb2; }
+  .topbar-btn:hover        { border-color: #7c6f64; color: #ebdbb2; }
+  .topbar-btn.active       { border-color: #83a598; color: #83a598; }
 
   /* ── stats ───────────────────────────────────────────── */
   #stats {
@@ -89,6 +90,80 @@
     z-index: 100;
     line-height: 1.6;
   }
+
+  /* ── settings panel ──────────────────────────────────── */
+  #settings {
+    position: fixed;
+    top: 56px; left: 16px;
+    width: 260px;
+    background: #111111;
+    border: 1px solid #1f1f1f;
+    border-radius: 8px;
+    z-index: 200;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+  }
+  #settings.open { display: flex; }
+
+  .settings-header {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #1f1f1f;
+    font-size: 11px;
+    font-weight: 600;
+    color: #7c6f64;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .settings-section {
+    padding: 10px 14px 2px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #504945;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .settings-row {
+    display: flex; align-items: center;
+    padding: 5px 14px;
+    gap: 8px;
+  }
+  .settings-row label {
+    font-size: 11px;
+    color: #a89984;
+    width: 110px;
+    flex-shrink: 0;
+  }
+  .settings-row input[type=range] {
+    flex: 1;
+    accent-color: #83a598;
+    height: 3px;
+    cursor: pointer;
+  }
+  .settings-row .val {
+    font-size: 10px;
+    color: #7c6f64;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .settings-reset {
+    margin: 10px 14px 12px;
+    background: none;
+    border: 1px solid #3c3836;
+    border-radius: 5px;
+    color: #7c6f64;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 5px 10px;
+    transition: border-color 0.15s, color 0.15s;
+    width: calc(100% - 28px);
+  }
+  .settings-reset:hover { border-color: #7c6f64; color: #a89984; }
 
   /* ── preview panel ───────────────────────────────────── */
   #preview {
@@ -228,7 +303,56 @@
 
 <div id="topbar">
   <input id="search" type="text" placeholder="search notes…" autocomplete="off" spellcheck="false">
-  <button id="refresh-btn" title="Refresh graph data">↻</button>
+  <button id="settings-btn" class="topbar-btn" title="Graph settings">⚙</button>
+  <button id="refresh-btn" class="topbar-btn" title="Refresh graph data">↻</button>
+</div>
+
+<!-- ── settings panel ──────────────────────────────────────────────────────── -->
+<div id="settings">
+  <div class="settings-header">Graph Settings</div>
+
+  <div class="settings-section">Physics</div>
+
+  <div class="settings-row">
+    <label>Link distance</label>
+    <input type="range" id="s-link-dist" min="20" max="400" step="5" value="120">
+    <span class="val" id="v-link-dist">120</span>
+  </div>
+  <div class="settings-row">
+    <label>Link strength</label>
+    <input type="range" id="s-link-str" min="0" max="1" step="0.05" value="0.3">
+    <span class="val" id="v-link-str">0.3</span>
+  </div>
+  <div class="settings-row">
+    <label>Repulsion</label>
+    <input type="range" id="s-charge" min="-800" max="-10" step="10" value="-120">
+    <span class="val" id="v-charge">-120</span>
+  </div>
+  <div class="settings-row">
+    <label>Center pull</label>
+    <input type="range" id="s-center" min="0" max="0.5" step="0.01" value="0.05">
+    <span class="val" id="v-center">0.05</span>
+  </div>
+  <div class="settings-row">
+    <label>Collision pad</label>
+    <input type="range" id="s-collide" min="0" max="40" step="1" value="12">
+    <span class="val" id="v-collide">12</span>
+  </div>
+
+  <div class="settings-section">Nodes</div>
+
+  <div class="settings-row">
+    <label>Size scale</label>
+    <input type="range" id="s-node-size" min="0.3" max="4" step="0.1" value="1">
+    <span class="val" id="v-node-size">1.0×</span>
+  </div>
+  <div class="settings-row">
+    <label>Min size</label>
+    <input type="range" id="s-node-min" min="1" max="20" step="0.5" value="5">
+    <span class="val" id="v-node-min">5</span>
+  </div>
+
+  <button class="settings-reset" id="settings-reset">Reset to defaults</button>
 </div>
 
 <svg id="svg">
@@ -271,6 +395,16 @@ const TAG_PALETTE = [
 const DEFAULT_NODE_COLOR = "#3c3836";
 const ORPHAN_COLOR       = "#282828";
 
+const DEFAULTS = {
+  linkDist:  120,
+  linkStr:   0.3,
+  charge:    -120,
+  center:    0.05,
+  collide:   12,
+  nodeSize:  1.0,
+  nodeMin:   5,
+};
+
 // ── state ────────────────────────────────────────────────────────────────────
 
 let graphData      = null;
@@ -279,11 +413,12 @@ let selectedNode   = null;
 let tagColorMap    = {};
 let activeTagFilter = null;
 let searchQuery    = "";
-let currentPath    = null; // path of currently previewed note
+let currentPath    = null;
 let saveTimer      = null;
+let cfg            = { ...DEFAULTS };
 
-const svg       = d3.select("#svg");
-const root      = d3.select("#root");
+const svg        = d3.select("#svg");
+const root       = d3.select("#root");
 const linksLayer = d3.select("#links-layer");
 const nodesLayer = d3.select("#nodes-layer");
 
@@ -293,12 +428,14 @@ const H = () => window.innerHeight;
 // ── init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
+  setupSettings();
   await loadGraph();
 }
 
 async function loadGraph() {
   try {
     const res  = await fetch("/graph.json");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     graphData  = data;
     buildTagColors(data.nodes);
@@ -307,7 +444,7 @@ async function loadGraph() {
     buildLegend();
   } catch (e) {
     console.error("Failed to load graph:", e);
-    toast("Failed to load graph data");
+    toast("Failed to load graph data: " + e.message);
   }
 }
 
@@ -327,7 +464,7 @@ function nodeColor(d) {
 }
 
 function nodeRadius(d) {
-  return 5 + Math.sqrt(d.backlinks || 0) * 3.5;
+  return cfg.nodeMin + Math.sqrt(d.backlinks || 0) * 3.5 * cfg.nodeSize;
 }
 
 // ── render ───────────────────────────────────────────────────────────────────
@@ -348,10 +485,10 @@ function render(data) {
   if (simulation) simulation.stop();
 
   simulation = d3.forceSimulation(nodes)
-    .force("link",    d3.forceLink(links).id(d => d.id).distance(120).strength(0.3))
-    .force("charge",  d3.forceManyBody().strength(d => -120 - nodeRadius(d) * 30))
-    .force("center",  d3.forceCenter(W() / 2, H() / 2).strength(0.05))
-    .force("collide", d3.forceCollide(d => nodeRadius(d) + 12))
+    .force("link",    d3.forceLink(links).id(d => d.id).distance(cfg.linkDist).strength(cfg.linkStr))
+    .force("charge",  d3.forceManyBody().strength(d => cfg.charge - nodeRadius(d) * 30))
+    .force("center",  d3.forceCenter(W() / 2, H() / 2).strength(cfg.center))
+    .force("collide", d3.forceCollide(d => nodeRadius(d) + cfg.collide))
     .alphaDecay(0.03)
     .on("tick", ticked);
 
@@ -408,7 +545,7 @@ function render(data) {
     .on("zoom", ({ transform }) => {
       root.attr("transform", transform);
       const k = transform.k;
-      // Labels fade in above zoom 1.4
+      // Labels fade in above zoom 1.2
       const labelOpacity = Math.max(0, Math.min(1, (k - 1.2) / 0.4));
       nodesLayer.selectAll(".node text").style("opacity", labelOpacity);
     });
@@ -438,11 +575,86 @@ function render(data) {
     schedulePositionSave(nodes);
   }
 
-  // Store references on the window so search/filter can access them
+  // Store references so search/filter/settings can access them
   window._graphNodes = nodes;
   window._graphLinks = links;
   window._d3Nodes    = node;
   window._d3Links    = link;
+}
+
+// ── settings ─────────────────────────────────────────────────────────────────
+
+function setupSettings() {
+  const btn   = document.getElementById("settings-btn");
+  const panel = document.getElementById("settings");
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = panel.classList.toggle("open");
+    btn.classList.toggle("active", open);
+  });
+
+  // Close when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove("open");
+      btn.classList.remove("active");
+    }
+  });
+
+  // Wire up each slider
+  function wire(id, valId, key, fmt) {
+    const slider = document.getElementById(id);
+    const label  = document.getElementById(valId);
+    slider.addEventListener("input", () => {
+      cfg[key] = parseFloat(slider.value);
+      label.textContent = fmt(cfg[key]);
+      applyPhysics();
+    });
+  }
+
+  wire("s-link-dist", "v-link-dist", "linkDist", v => Math.round(v));
+  wire("s-link-str",  "v-link-str",  "linkStr",  v => v.toFixed(2));
+  wire("s-charge",    "v-charge",    "charge",   v => Math.round(v));
+  wire("s-center",    "v-center",    "center",   v => v.toFixed(2));
+  wire("s-collide",   "v-collide",   "collide",  v => Math.round(v));
+  wire("s-node-size", "v-node-size", "nodeSize", v => v.toFixed(1) + "×");
+  wire("s-node-min",  "v-node-min",  "nodeMin",  v => v.toFixed(1));
+
+  document.getElementById("settings-reset").addEventListener("click", () => {
+    cfg = { ...DEFAULTS };
+    // Reset slider values and labels
+    document.getElementById("s-link-dist").value = cfg.linkDist;   document.getElementById("v-link-dist").textContent = cfg.linkDist;
+    document.getElementById("s-link-str").value  = cfg.linkStr;    document.getElementById("v-link-str").textContent  = cfg.linkStr.toFixed(2);
+    document.getElementById("s-charge").value    = cfg.charge;     document.getElementById("v-charge").textContent    = cfg.charge;
+    document.getElementById("s-center").value    = cfg.center;     document.getElementById("v-center").textContent    = cfg.center.toFixed(2);
+    document.getElementById("s-collide").value   = cfg.collide;    document.getElementById("v-collide").textContent   = cfg.collide;
+    document.getElementById("s-node-size").value = cfg.nodeSize;   document.getElementById("v-node-size").textContent = cfg.nodeSize.toFixed(1) + "×";
+    document.getElementById("s-node-min").value  = cfg.nodeMin;    document.getElementById("v-node-min").textContent  = cfg.nodeMin.toFixed(1);
+    applyPhysics();
+  });
+}
+
+// Apply current cfg to the running simulation (no full re-render needed)
+function applyPhysics() {
+  if (!simulation) return;
+
+  simulation
+    .force("link")    .distance(cfg.linkDist).strength(cfg.linkStr);
+  simulation
+    .force("charge")  .strength(d => cfg.charge - nodeRadius(d) * 30);
+  simulation
+    .force("center")  .strength(cfg.center);
+  simulation
+    .force("collide") .radius(d => nodeRadius(d) + cfg.collide);
+
+  // Update visible node sizes
+  if (window._d3Nodes) {
+    window._d3Nodes.select("circle").attr("r", d => nodeRadius(d));
+    window._d3Nodes.select("text").attr("dy", d => nodeRadius(d) + 5);
+  }
+
+  simulation.alpha(0.4).restart();
 }
 
 // ── highlight ────────────────────────────────────────────────────────────────
@@ -513,7 +725,6 @@ async function showPreview(d) {
   try {
     const res  = await fetch("/note?p=" + encodeURIComponent(d.path));
     const text = await res.text();
-    // Strip frontmatter for preview
     const body = text.replace(/^---[\s\S]*?---\n?/, "");
     document.getElementById("preview-body").innerHTML = marked.parse(body);
   } catch {
@@ -534,7 +745,6 @@ document.getElementById("open-btn").addEventListener("click", async () => {
   toast("opened in neovim");
 });
 
-// Double-click node → open directly
 document.getElementById("svg").addEventListener("dblclick", async (event) => {
   if (selectedNode) {
     await fetch("/open?p=" + encodeURIComponent(selectedNode.path));
@@ -614,7 +824,6 @@ function buildLegend() {
     legend.appendChild(item);
   });
 
-  // Untagged
   if (document.querySelector(".legend-item")) {
     const item = document.createElement("div");
     item.className = "legend-item";
@@ -669,6 +878,8 @@ window.addEventListener("keydown", e => {
     document.getElementById("search").value = "";
     searchQuery = ""; activeTagFilter = null;
     applyFilter();
+    document.getElementById("settings").classList.remove("open");
+    document.getElementById("settings-btn").classList.remove("active");
   }
   if (e.key === "f" && !e.target.matches("input")) {
     document.getElementById("search").focus();
