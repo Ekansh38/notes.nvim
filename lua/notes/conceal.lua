@@ -270,7 +270,8 @@ local function apply_callouts(bufnr, lines)
 end
 
 -- ── markdown links ────────────────────────────────────────────────────────────
--- [text](url) → conceals [ and ](url), leaves text visible, appends ↗ icon.
+-- [text](url) → shows "text↗", hides [ and ](url) as 0-width so long URLs
+-- never wrap to blank visual lines.
 -- Skips wikilinks ([[) and image links (![ ).
 
 local function apply_md_links(bufnr, row, line)
@@ -311,12 +312,17 @@ local function apply_md_links(bufnr, row, line)
         end
         if not paren_e then break end
 
-        -- Conceal the opening [
+        -- Conceal the opening [  (0-width)
         conceal(bufnr, row, bracket_s, bracket_s)
-        -- Conceal ](url) → show as ↗ icon
+        -- Insert ↗ inline right before ](url) so it appears after the link text
+        vim.api.nvim_buf_set_extmark(bufnr, ns, row, bracket_e - 1, {
+            virt_text     = { { "↗", "Comment" } },
+            virt_text_pos = "inline",
+        })
+        -- Conceal ](url) entirely as 0-width — prevents URL from wrapping to blank lines
         vim.api.nvim_buf_set_extmark(bufnr, ns, row, bracket_e - 1, {
             end_col = paren_e,
-            conceal = "↗",
+            conceal = "",
         })
 
         pos = paren_e + 1

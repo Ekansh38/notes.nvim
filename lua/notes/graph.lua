@@ -69,14 +69,15 @@ function M.open()
         return
     end
 
-    if server_running() then
-        -- Server already up — just (re)open the browser
-        vim.fn.jobstart({ "open", "http://localhost:" .. PORT }, { detach = true })
-        vim.notify("notes: graph refreshed → http://localhost:" .. PORT, vim.log.levels.INFO)
-        return
+    -- Kill any stale server on the port (leftover from a previous Neovim session)
+    -- so the new server always has the correct socket + vault paths.
+    if _job_id and _job_id > 0 then
+        vim.fn.jobstop(_job_id)
+        _job_id = nil
     end
+    vim.fn.system("lsof -ti:" .. PORT .. " 2>/dev/null | xargs kill -9 2>/dev/null")
 
-    -- Spawn the server
+    -- Spawn fresh server
     _job_id = vim.fn.jobstart({
         "python3", server_py,
         "--socket", vim.v.servername,
@@ -101,11 +102,11 @@ function M.open()
         return
     end
 
-    -- Give server ~400ms to bind, then open browser
+    -- Give server ~600ms to bind, then open browser
     vim.defer_fn(function()
         vim.fn.jobstart({ "open", "http://localhost:" .. PORT }, { detach = true })
         vim.notify("notes: graph → http://localhost:" .. PORT, vim.log.levels.INFO)
-    end, 400)
+    end, 600)
 end
 
 function M.stop()

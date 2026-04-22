@@ -1,6 +1,6 @@
 # notes.nvim
 
-> Personal Obsidian replacement for Neovim. Vibe-coded, no fluff.
+Personal Obsidian replacement for Neovim.
 
 ## Requirements
 
@@ -58,20 +58,19 @@ require("notes").setup({
 
 | Key | Mode | Action |
 |-----|------|--------|
-| `gf` | n | Follow `[[wikilink]]` — creates note if missing |
+| `gf` | n | Follow `[[wikilink]]` (creates note if missing) |
 | `K` | n | Preview linked note in a floating window |
-| `<leader>on` | n | New note (title prompt → template picker) |
-| `<leader>ob` | n | Backlinks — all notes linking to this one |
-| `<leader>or` | n | Rename note + update every `[[link]]` to it |
-| `<leader>ot` | n | Tag search — browse tags, preview notes |
-| `<leader>oo` | n | Orphan notes — notes with no inbound links |
+| `<leader>on` | n | New note (title prompt, template picker) |
+| `<leader>ob` | n | Backlinks (all notes linking to this one) |
+| `<leader>or` | n | Rename note and update every `[[link]]` to it |
+| `<leader>ot` | n | Tag search (browse tags, preview notes) |
+| `<leader>oo` | n | Orphan notes (notes with no inbound links) |
 | `<leader>oi` | n | Inject template into current note at cursor |
-| `<leader>oh` | n | Heading outline — jump to any heading |
+| `<leader>oh` | n | Heading outline (jump to any heading) |
 | `<leader>os` | n | Vault stats floating window |
 | `<leader>op` | n | Paste clipboard URL as `[Title](url)` markdown link |
-| `<leader>oe` | v | Extract selection → new note, replace with `[[wikilink]]` |
 | `[d` | n | Previous daily note |
-| `]d` | n | Next daily note |
+| `]d` | n | Next daily note (creates next day if at the end) |
 
 ## Commands
 
@@ -80,12 +79,13 @@ require("notes").setup({
 | `:NotesNew` | Create a new note |
 | `:NotesDaily` | Open today's daily note |
 | `:NotesBacklinks` | Show backlinks for current note |
-| `:NotesRename` | Rename current note + relink |
+| `:NotesRename` | Rename current note and relink |
 | `:NotesTagSearch` | Browse tags |
 | `:NotesOrphans` | Show orphan notes |
 | `:NotesInject` | Inject a template into current note |
 | `:NotesStats` | Show vault statistics |
-| `:NotesExtract` | Extract visual selection to new note |
+| `:NotesGraph` | Open vault graph in browser |
+| `:NotesGraphStop` | Stop the graph server |
 
 ## Completion (blink.cmp)
 
@@ -121,24 +121,24 @@ Type `[[` to get note title completion. `gf` follows the link under the cursor; 
 Type `[[Note Title#` to complete headings from that specific note, enabling `[[How slices work in Go#What is a slice?]]`-style links.
 
 ### Tags
-- Body: `#tagname` → substring-fuzzy autocomplete
+- Body: `#tagname` -> substring-fuzzy autocomplete
 - YAML frontmatter: list items under `tags:` autocomplete without needing `#`
 - `<leader>ot` opens a tag browser with note counts and previews
 
 ### Daily notes
-`<leader>od` opens today's note, creating it from your daily template if it doesn't exist. Navigate between days with `[d` / `]d`.
+`<leader>od` opens today's note, creating it from your daily template if it doesn't exist. Navigate between days with `[d` / `]d`. Pressing `]d` on the most recent daily note creates the next calendar day's note with the correct date in all template tokens.
 
 ### Smart URL paste
 `<leader>op` reads your clipboard. If it's a URL, it fetches the page `<title>` via `curl` and inserts `[Page Title](https://...)`. Falls back to normal paste if the clipboard isn't a URL.
-
-### Extract to note
-Visually select lines, press `<leader>oe`, enter a title. The selected text becomes a new note and the selection is replaced with a `[[wikilink]]` to it.
 
 ### Note pinning
 Add `pinned: true` to a note's YAML frontmatter. Pinned notes always appear at the top of `[[` completion, labeled `pinned`.
 
 ### Vault stats
 `<leader>os` opens a floating window showing: note count, tag count and uses, orphan count, most-linked note, and last-edited note.
+
+### Graph view
+`<leader>og` spawns a local Python server and opens an interactive D3 force graph in your browser. Node positions persist between sessions. Click a node to preview the note, double-click to open it in Neovim.
 
 ### Word count for lualine
 ```lua
@@ -159,14 +159,17 @@ require("notes").setup({
     git_auto_push   = true,  -- push in detached process (no delay on exit)
 })
 ```
-One commit per session with timestamp message. Push runs in the background after Neovim exits — zero wait time.
+One commit per session with timestamp message. Push runs in the background after Neovim exits.
 
-### Conceal & highlighting
-Extmark-based concealment (no treesitter dependency for this):
-- `[[Title]]` → displays as `Title`
-- `` `code` `` → styled inline code
-- `==highlight==` → styled like `Visual`
-- Code block backgrounds — full-width, theme-aware (`CursorLine`)
+### Conceal and highlighting
+Extmark-based concealment:
+- `[[Title]]` displays as `Title`
+- `[[Dead link]]` shown in warning color
+- `[text](url)` displays as `text` with a trailing icon
+- `` `code` `` styled inline code
+- `==highlight==` styled like `Visual`
+- `>[!note]` callout blocks with icons and colored backgrounds
+- Code block backgrounds (full-width, theme-aware)
 - YAML frontmatter `---` delimiters styled as `Comment`
 
 All highlight groups link to standard theme groups so your colorscheme controls the look automatically.
@@ -182,3 +185,5 @@ All highlight groups link to standard theme groups so your colorscheme controls 
 | `{{date:D MMMM YYYY}}` | `20 April 2026` |
 
 Tokens: `YYYY` year, `MMMM` month name, `MMM` short month, `MM` month number, `D` day, `DD` zero-padded day, `dddd` weekday name, `ddd` short weekday.
+
+When the note title is a date (e.g. `2026-04-22`), all date tokens resolve to that date rather than today.

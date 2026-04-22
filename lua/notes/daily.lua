@@ -57,8 +57,31 @@ function M.navigate(direction)
         target_idx = idx + direction
     end
 
-    if target_idx < 1 or target_idx > #files then
-        vim.notify("notes: no " .. (direction == -1 and "earlier" or "later") .. " daily note", vim.log.levels.INFO)
+    if target_idx < 1 then
+        vim.notify("notes: no earlier daily note", vim.log.levels.INFO)
+        return
+    end
+
+    -- Past the last note going forward: create the next calendar day's note
+    if target_idx > #files then
+        -- Compute the date after the last known daily note
+        local last = files[#files]
+        local y, mo, d = last:match("(%d%d%d%d)-(%d%d)-(%d%d)%.md$")
+        local next_t   = os.time({ year = tonumber(y), month = tonumber(mo),
+                                   day  = tonumber(d) + 1, hour = 12 })
+        local next_date = os.date("%Y-%m-%d", next_t)
+        local next_path = daily_dir .. "/" .. next_date .. ".md"
+
+        local tmpl_path = cfg.vault_path .. "/" .. cfg.templates_dir
+                          .. "/" .. cfg.daily_template
+        local content, err = require("notes.template").load_and_apply(tmpl_path, next_date)
+        if err then
+            vim.notify("notes: " .. err .. " -- creating empty daily note", vim.log.levels.WARN)
+            content = ""
+        end
+
+        vim.fn.writefile(vim.split(content, "\n"), next_path)
+        vim.cmd("edit " .. vim.fn.fnameescape(next_path))
         return
     end
 

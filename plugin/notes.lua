@@ -36,10 +36,6 @@ vim.api.nvim_create_user_command("NotesStats", function()
     require("notes.stats").show()
 end, { desc = "Show vault statistics" })
 
-vim.api.nvim_create_user_command("NotesExtract", function()
-    require("notes.extract").extract()
-end, { desc = "Extract visual selection into a new note" })
-
 vim.api.nvim_create_user_command("NotesGraph", function()
     require("notes.graph").open()
 end, { desc = "Open vault graph in browser" })
