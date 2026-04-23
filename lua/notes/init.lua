@@ -62,12 +62,13 @@ function M.setup(opts)
             end
 
             -- Vault-specific comfort settings
-            vim.opt_local.conceallevel = 2       -- required for extmark conceal to hide brackets
-            vim.opt_local.wrap         = true    -- long lines wrap instead of scrolling sideways
-            vim.opt_local.linebreak    = true    -- wrap at word boundaries, not mid-word
-            vim.opt_local.spell        = true    -- spell checking
-            vim.opt_local.spelllang    = "en_us"
-            vim.opt_local.colorcolumn  = "100"   -- subtle guide; 100 is a comfortable modern width
+            vim.opt_local.conceallevel  = 2       -- required for extmark conceal to hide brackets
+            vim.opt_local.concealcursor = "n"     -- keep links concealed in normal mode (prevents blank wrapped lines)
+            vim.opt_local.wrap          = true    -- long lines wrap instead of scrolling sideways
+            vim.opt_local.linebreak     = true    -- wrap at word boundaries, not mid-word
+            vim.opt_local.spell         = true    -- spell checking
+            vim.opt_local.spelllang     = "en_us"
+            vim.opt_local.colorcolumn   = "100"   -- subtle guide; 100 is a comfortable modern width
 
             -- Extmark-based concealment (wikilinks, inline code, ==highlight==)
             require("notes.conceal").attach(bufnr)
@@ -85,7 +86,7 @@ function M.setup(opts)
             vim.keymap.set("n", "<leader>os", require("notes.stats").show,         vim.tbl_extend("force", o, { desc = "Notes: vault stats" }))
             vim.keymap.set("n", "<leader>og", require("notes.graph").open,         vim.tbl_extend("force", o, { desc = "Notes: graph view" }))
             vim.keymap.set("n", "<leader>op", require("notes.url").paste_as_link,  vim.tbl_extend("force", o, { desc = "Notes: paste URL as link" }))
-vim.keymap.set("n", "[d",         function() require("notes.daily").navigate(-1) end, vim.tbl_extend("force", o, { desc = "Notes: previous daily note" }))
+            vim.keymap.set("n", "[d",         function() require("notes.daily").navigate(-1) end, vim.tbl_extend("force", o, { desc = "Notes: previous daily note" }))
             vim.keymap.set("n", "]d",         function() require("notes.daily").navigate(1) end,  vim.tbl_extend("force", o, { desc = "Notes: next daily note" }))
         end,
     })
