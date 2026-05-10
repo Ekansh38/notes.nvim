@@ -55,17 +55,7 @@ function M.new()
         local title = vim.trim(input):gsub("[/\\]", "-")
         local cfg   = require("notes").config
 
-        -- If current buffer is inside the vault, create in the same directory.
-        -- Otherwise fall back to vault root.
-        local bufname = vim.api.nvim_buf_get_name(0)
-        local dir
-        if bufname ~= "" and bufname:find(cfg.vault_path, 1, true) then
-            dir = vim.fn.fnamemodify(bufname, ":h")
-        else
-            dir = cfg.vault_path
-        end
-
-        local path = dir .. "/" .. title .. ".md"
+        local path = cfg.vault_path .. "/" .. title .. ".md"
 
         -- Already exists → just open it
         if vim.fn.filereadable(path) == 1 then
