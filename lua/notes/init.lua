@@ -63,7 +63,6 @@ function M.setup(opts)
 
             -- Vault-specific comfort settings
             vim.opt_local.conceallevel  = 2       -- required for extmark conceal to hide brackets
-            vim.opt_local.concealcursor = "n"     -- keep links concealed in normal mode (prevents blank wrapped lines)
             vim.opt_local.wrap          = true    -- long lines wrap instead of scrolling sideways
             vim.opt_local.linebreak     = true    -- wrap at word boundaries, not mid-word
             vim.opt_local.spell         = true    -- spell checking

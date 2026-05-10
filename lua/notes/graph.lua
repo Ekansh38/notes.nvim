@@ -104,7 +104,7 @@ function M.open()
 
     -- Give server ~600ms to bind, then open browser
     vim.defer_fn(function()
-        vim.fn.jobstart({ "open", "http://localhost:" .. PORT }, { detach = true })
+        vim.ui.open("http://localhost:" .. PORT)
         vim.notify("notes: graph → http://localhost:" .. PORT, vim.log.levels.INFO)
     end, 600)
 end

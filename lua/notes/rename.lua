@@ -29,7 +29,21 @@ function M.rename()
             return
         end
 
-        -- 2. Relink all .md files in the vault
+        -- 2. Update title: in the renamed note's own frontmatter (if present)
+        local self_lines = vim.fn.readfile(new_path)
+        if self_lines[1] == "---" then
+            for i = 2, #self_lines do
+                if self_lines[i] == "---" or self_lines[i] == "..." then break end
+                local updated_line = self_lines[i]:gsub("^(title:%s*).*", "%1" .. new_title)
+                if updated_line ~= self_lines[i] then
+                    self_lines[i] = updated_line
+                    vim.fn.writefile(self_lines, new_path)
+                    break
+                end
+            end
+        end
+
+        -- 3. Relink [[OldTitle]] → [[NewTitle]] in all vault files
         local cfg         = require("notes").config
         local files       = vim.fn.glob(cfg.vault_path .. "/**/*.md", false, true)
         local escaped_old = vim.pesc(old_title) -- escape Lua pattern special chars

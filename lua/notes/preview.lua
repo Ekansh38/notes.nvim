@@ -54,7 +54,11 @@ function M.show()
         ::skip::
     end
 
-    if #preview == 0 then preview = { "(empty note)" } end
+    if #preview == 0 then
+        preview = { "(empty note)" }
+    elseif #preview >= 25 then
+        preview[#preview + 1] = "…"
+    end
 
     -- Scratch buffer with markdown filetype so treesitter highlights it
     local buf = vim.api.nvim_create_buf(false, true)

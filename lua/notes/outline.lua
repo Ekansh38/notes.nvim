@@ -6,7 +6,6 @@ local M = {}
 function M.show()
     local pickers      = require("telescope.pickers")
     local finders      = require("telescope.finders")
-    local conf         = require("telescope.config").values
     local actions      = require("telescope.actions")
     local action_state = require("telescope.actions.state")
 
@@ -42,7 +41,7 @@ function M.show()
                 }
             end,
         }),
-        sorter = conf.generic_sorter({}),
+        sorter = require("telescope.sorters").empty(),
         attach_mappings = function(prompt_bufnr, _)
             actions.select_default:replace(function()
                 local sel = action_state.get_selected_entry()
